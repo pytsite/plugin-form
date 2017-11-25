@@ -1,0 +1,25 @@
+{
+  "name": "form",
+  "version": "1.0",
+  "description": {
+    "en": "Form",
+    "ru": "Form",
+    "uk": "Form"
+  },
+  "url": "https://github.com/pytsite/plugin-form",
+  "author": {
+    "name": "Alexander Shepetko",
+    "email": "a@shepetko.com",
+    "url": "https://shepetko.com"
+  },
+  "requires": {
+    "packages": [],
+    "plugins": [
+      "assetman",
+      "http_api",
+      "jquery",
+      "jquery_scrollto",
+      "widget"
+    ]
+  }
+}
