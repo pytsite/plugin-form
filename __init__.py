@@ -22,10 +22,10 @@ def _init():
     assetman.t_js(__name__ + '@**')
     assetman.js_module('pytsite-form-module', __name__ + '@js/pytsite-form-module')
 
-    router.handle(_controllers.Submit(), '/form/submit/<uid>', 'form@submit', methods='POST')
+    router.handle(_controllers.Submit, '/form/submit/<uid>', 'form@submit', methods='POST')
 
-    http_api.handle('POST', 'form/widgets/<uid>', _http_api_controllers.GetWidgets(), 'form@post_get_widgets')
-    http_api.handle('POST', 'form/validate/<uid>', _http_api_controllers.PostValidate(), 'form@post_validate')
+    http_api.handle('POST', 'form/widgets/<uid>', _http_api_controllers.GetWidgets, 'form@post_get_widgets')
+    http_api.handle('POST', 'form/validate/<uid>', _http_api_controllers.PostValidate, 'form@post_validate')
 
 
 _init()
