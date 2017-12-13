@@ -145,7 +145,7 @@ class Form(_ABC):
 
         self._on_setup_widgets()
 
-        _events.fire('form.setup_widgets.' + self.name.replace('-', '_'), frm=self)
+        _events.fire('form@setup_widgets.' + self.name.replace('-', '_'), frm=self)
 
     def _on_setup_form(self, **kwargs):
         """Hook.
@@ -434,7 +434,7 @@ class Form(_ABC):
     def render(self) -> str:
         """Render the form.
         """
-        _events.fire('form.render.' + self.name.replace('-', '_'), frm=self)
+        _events.fire('form@render.' + self.name.replace('-', '_'), frm=self)
 
         return _tpl.render(self._tpl, {'form': self})
 
