@@ -1,11 +1,11 @@
 """PytSite Form Plugin Controllers
 """
-from pytsite import routing as _routing
-from . import _api
-
 __author__ = 'Alexander Shepetko'
 __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
+
+from pytsite import routing as _routing
+from . import _api
 
 
 class Submit(_routing.Controller):

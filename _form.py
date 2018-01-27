@@ -1,5 +1,9 @@
 """PytSite Form Plugin Base Form
 """
+__author__ = 'Alexander Shepetko'
+__email__ = 'a@shepetko.com'
+__license__ = 'MIT'
+
 import re as _re
 from typing import List as _List
 from abc import ABC as _ABC
@@ -9,10 +13,6 @@ from pytsite import util as _util, router as _router, validation as _validation,
     lang as _lang
 from plugins import widget as _widget, assetman as _assetman
 from . import _error
-
-__author__ = 'Alexander Shepetko'
-__email__ = 'a@shepetko.com'
-__license__ = 'MIT'
 
 _form_name_sub_re = _re.compile('[._]+')
 
@@ -71,7 +71,8 @@ class Form(_ABC):
 
         # Title
         self._title = kwargs.get('title')
-        self._title_css = kwargs.get('title_css', 'box-title')
+        self._hide_title = kwargs.get('hide_title', False)
+        self._title_css = kwargs.get('title_css', '')
 
         self._data = kwargs.get('data', {})
 
@@ -235,6 +236,18 @@ class Form(_ABC):
         """Set title.
         """
         self._title = value
+
+    @property
+    def hide_title(self) -> bool:
+        """Get hide_title.
+        """
+        return self._hide_title
+
+    @hide_title.setter
+    def hide_title(self, value: bool):
+        """Set hide_title.
+        """
+        self._hide_title = value
 
     @property
     def css(self) -> str:
@@ -443,7 +456,7 @@ class Form(_ABC):
         """
         return self.render()
 
-    def add_widget(self, widget: _widget.Abstract):
+    def add_widget(self, widget: _widget.Abstract) -> _widget.Abstract:
         """Add a widget.
         """
         if widget.form_area not in self._areas:
@@ -455,7 +468,7 @@ class Form(_ABC):
         self._widgets.append(widget)
         self._widgets.sort(key=lambda x: x.weight)
 
-        return self
+        return widget
 
     def replace_widget(self, source_uid: str, replacement: _widget.Abstract):
         """Replace a widget with another one.

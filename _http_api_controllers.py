@@ -1,11 +1,11 @@
 """PytSite Form Plugin HTTP API Controllers
 """
-from pytsite import routing as _routing
-from . import _error, _api
-
 __author__ = 'Alexander Shepetko'
 __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
+
+from pytsite import routing as _routing
+from . import _error, _api
 
 
 class GetWidgets(_routing.Controller):

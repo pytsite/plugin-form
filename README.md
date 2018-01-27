@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 1.3 (2017-12-27)
+
+New property `Form.hide_title` added
+
+
 ### 1.2.2 (2017-12-21)
 
 Init code refactored.

@@ -1,11 +1,11 @@
 """PytSite Form API
 """
-from pytsite import util as _util
-from . import _form
-
 __author__ = 'Alexander Shepetko'
 __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
+
+from pytsite import util as _util
+from . import _form
 
 
 def dispense(request_inp: dict, fill_mode: str = None) -> _form.Form:

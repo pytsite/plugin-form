@@ -4,32 +4,24 @@ __author__ = 'Alexander Shepetko'
 __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
-from pytsite import plugman as _plugman
-
-if _plugman.is_installed(__name__):
-    # Public API
-    from . import _error as error
-    from ._form import Form
-
-
-def _register_assetman_resources():
-    from plugins import assetman
-
-    if not assetman.is_package_registered(__name__):
-        assetman.register_package(__name__)
-        assetman.t_less(__name__)
-        assetman.t_js(__name__)
-        assetman.js_module('pytsite-form-module', __name__ + '@js/pytsite-form-module')
-
-    return assetman
-
-
-def plugin_install():
-    _register_assetman_resources().build(__name__)
+# Public API
+from . import _error as error
+from ._form import Form
 
 
 def plugin_load():
-    _register_assetman_resources()
+    from plugins import assetman
+
+    assetman.register_package(__name__)
+    assetman.t_less(__name__)
+    assetman.t_js(__name__)
+    assetman.js_module('pytsite-form-module', __name__ + '@js/pytsite-form-module')
+
+
+def plugin_install():
+    from plugins import assetman
+
+    assetman.build(__name__)
 
 
 def plugin_load_uwsgi():
