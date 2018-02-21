@@ -4,6 +4,12 @@
 ## Changelog
 
 
+### 1.4 (2018-02-21)
+
+New property `Form.submit_button` and corresponding `Form`'s constructor
+argument added.
+
+
 ### 1.3 (2017-12-27)
 
 New property `Form.hide_title` added

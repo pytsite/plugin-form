@@ -5,7 +5,7 @@ __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
 import re as _re
-from typing import List as _List
+from typing import List as _List, Optional as _Optional
 from abc import ABC as _ABC
 from collections import OrderedDict as _OrderedDict
 from datetime import datetime as _datetime
@@ -56,6 +56,17 @@ class Form(_ABC):
         self._redirect = _router.request().inp.get('__redirect', kwargs.get('redirect'))
         self._nocache = kwargs.get('nocache', False)
 
+        # Submit button
+        self._submit_button = kwargs.get('submit_button', _widget.button.Submit(
+            weight=20,
+            uid='action-submit',
+            value=_lang.t('form@save'),
+            color='primary',
+            icon='fa fa-fw fa-save',
+            form_area='footer',
+            css='form-action-submit',
+        ))
+
         # AJAX endpoint to load form's widgets
         self._get_widgets_ep = kwargs.get('get_widgets_ep', 'form/widgets')
 
@@ -104,15 +115,8 @@ class Form(_ABC):
 
         # 'Submit' button for the last step
         if self._steps == self._step:
-            self.add_widget(_widget.button.Submit(
-                weight=20,
-                uid='action-submit',
-                value=_lang.t('form@save'),
-                color='primary',
-                icon='fa fa-fw fa-save',
-                form_area='footer',
-                css='form-action-submit',
-            ))
+            if isinstance(self._submit_button, _widget.button.Submit):
+                self.add_widget(self._submit_button)
 
         # 'Next' button for all steps except the last one
         if self._step < self._steps:
@@ -386,6 +390,17 @@ class Form(_ABC):
     @nocache.setter
     def nocache(self, value: bool):
         self._nocache = value
+
+    @property
+    def submit_button(self) -> _Optional[_widget.button.Submit]:
+        return self._submit_button
+
+    @submit_button.setter
+    def submit_button(self, value: _Optional[_widget.button.Submit]):
+        if not (value in (None, False) or isinstance(value, _widget.button.Submit)):
+            raise TypeError('None, False or {} expected, got {}'.format(type(_widget.button.Submit), value))
+
+        self._submit_button = value
 
     def fill(self, values: dict, **kwargs):
         """Fill form's widgets with values.

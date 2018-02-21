@@ -24,7 +24,7 @@ def plugin_install():
     assetman.build(__name__)
 
 
-def plugin_load_uwsgi():
+def plugin_load_wsgi():
     from pytsite import router, tpl, lang
     from plugins import http_api
     from . import _controllers, _http_api_controllers
