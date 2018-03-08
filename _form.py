@@ -10,7 +10,7 @@ from abc import ABC as _ABC
 from collections import OrderedDict as _OrderedDict
 from datetime import datetime as _datetime
 from pytsite import util as _util, router as _router, validation as _validation, tpl as _tpl, events as _events, \
-    lang as _lang
+    lang as _lang, routing as _routing
 from plugins import widget as _widget, assetman as _assetman
 from . import _error
 
@@ -24,9 +24,6 @@ class Form(_ABC):
     def __init__(self, **kwargs):
         """Init.
         """
-        if not _router.request():
-            raise RuntimeError('Form cannot be created without HTTP request context')
-
         # Widgets
         self._widgets = []  # type: _List[_widget.Abstract]
 
@@ -45,15 +42,15 @@ class Form(_ABC):
         self._uid = _util.random_str()
         self._created = _datetime.now()
         self._name = kwargs.get('name') or _form_name_sub_re.sub('-', self.cid.lower())
-        self._path = kwargs.get('path', _router.current_path(True))
+        self._path = kwargs.get('path')
         self._method = kwargs.get('method', 'post')
-        self._action = kwargs.get('action', _router.rule_url('form@submit', {'uid': self._uid}))
+        self._action = kwargs.get('action')
         self._steps = int(kwargs.get('steps', 1))
         self._step = int(kwargs.get('step', 1))
         self._modal = kwargs.get('modal', False)
         self._modal_close_btn = kwargs.get('modal_close_btn', True)
         self._prevent_submit = kwargs.get('prevent_submit', False)
-        self._redirect = _router.request().inp.get('__redirect', kwargs.get('redirect'))
+        self._redirect = kwargs.get('redirect')
         self._nocache = kwargs.get('nocache', False)
 
         # Submit button
@@ -100,8 +97,9 @@ class Form(_ABC):
                 self._data.update({k: v})
 
         # Assets
-        _assetman.preload('form@css/form.css')
-        _assetman.preload('form@js/pytsite-form.js')
+        if _router.request():
+            _assetman.preload('form@css/form.css')
+            _assetman.preload('form@js/pytsite-form.js')
 
         # Setup form
         self._on_setup_form(**kwargs)
@@ -219,13 +217,19 @@ class Form(_ABC):
 
     @property
     def action(self) -> str:
-        """Get form action URL.
-         """
-        return _router.url(self._action, query={'__redirect': self._redirect}) if self._redirect else self._action
+        """Get form's action URL
+        """
+        if not self._action:
+            try:
+                self._action = _router.rule_url('form@submit', {'uid': self._uid})
+            except _routing.error.RuleNotFound:
+                self._action = _router.base_url()
+
+        return _router.url(self._action, query={'__redirect': self.redirect}) if self.redirect else self._action
 
     @action.setter
     def action(self, value):
-        """Set form action URL.
+        """Set form's action URL
         """
         self._action = value
 
@@ -369,6 +373,9 @@ class Form(_ABC):
 
     @property
     def redirect(self) -> str:
+        if not self._redirect and _router.request():
+            self._redirect = _router.request().inp.get('__redirect')
+
         return self._redirect
 
     @redirect.setter
@@ -381,6 +388,9 @@ class Form(_ABC):
 
     @property
     def path(self) -> str:
+        if not self._path:
+            self._path = _router.current_path(True)
+
         return self._path
 
     @property
@@ -478,7 +488,7 @@ class Form(_ABC):
             raise ValueError("Invalid form area: '{}'".format(widget.form_area))
 
         if widget.uid in self._widgets:
-            raise KeyError("Widget '{}' is already added.".format(widget.uid))
+            raise KeyError("Widget '{}' is already added".format(widget.uid))
 
         self._widgets.append(widget)
         self._widgets.sort(key=lambda x: x.weight)

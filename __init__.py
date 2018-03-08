@@ -10,7 +10,11 @@ from ._form import Form
 
 
 def plugin_load():
+    from pytsite import tpl, lang
     from plugins import assetman
+
+    lang.register_package(__name__)
+    tpl.register_package(__name__)
 
     assetman.register_package(__name__)
     assetman.t_less(__name__)
@@ -25,12 +29,9 @@ def plugin_install():
 
 
 def plugin_load_wsgi():
-    from pytsite import router, tpl, lang
+    from pytsite import router
     from plugins import http_api
     from . import _controllers, _http_api_controllers
-
-    lang.register_package(__name__)
-    tpl.register_package(__name__)
 
     router.handle(_controllers.Submit, '/form/submit/<uid>', 'form@submit', methods='POST')
 

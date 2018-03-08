@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 1.4.1 (2018-03-08)
+
+Dependency of `Form` from `router.request()` readiness made optional.
+
+
 ### 1.4 (2018-02-21)
 
 New property `Form.submit_button` and corresponding `Form`'s constructor
