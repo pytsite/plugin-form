@@ -379,7 +379,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                                 if (w) {
                                     if (!w.alwaysHidden) {
                                         w.setState('error');
-                                        w.addMessage(widget_message);
+                                        w.addMessage(widget_message, 'danger');
                                     }
                                     else {
                                         self.addMessage(widget_uid + ': ' + widget_message, 'danger');

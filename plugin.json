@@ -1,6 +1,6 @@
 {
   "name": "form",
-  "version": "1.4.1",
+  "version": "1.5",
   "description": {
     "en": "Form",
     "ru": "Form",
@@ -19,7 +19,7 @@
       "http_api",
       "jquery",
       "jquery_scrollto",
-      "widget"
+      "widget>=1.4"
     ]
   }
 }

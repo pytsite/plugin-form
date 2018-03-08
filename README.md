@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 1.5 (2018-03-08)
+
+Little support of Twitter Bootstrap 4 added.
+
+
 ### 1.4.1 (2018-03-08)
 
 Dependency of `Form` from `router.request()` readiness made optional.
