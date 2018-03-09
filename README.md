@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 1.5.1 (2018-03-09)
+
+Incorrect behaviour of `Form.redirect` property fixed.
+
+
 ### 1.5 (2018-03-08)
 
 Little support of Twitter Bootstrap 4 added.

@@ -373,7 +373,7 @@ class Form(_ABC):
 
     @property
     def redirect(self) -> str:
-        if not self._redirect and _router.request():
+        if self._redirect is None and _router.request() and '__redirect' in _router.request().inp:
             self._redirect = _router.request().inp.get('__redirect')
 
         return self._redirect
