@@ -5,20 +5,21 @@ __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
 import re as _re
-from typing import List as _List, Optional as _Optional
-from abc import ABC as _ABC
+from typing import List as _List, Optional as _Optional, Mapping as _Mapping
+from abc import ABC as _ABC, abstractmethod as _abstractmethod
 from collections import OrderedDict as _OrderedDict
 from datetime import datetime as _datetime
 from pytsite import util as _util, router as _router, validation as _validation, tpl as _tpl, events as _events, \
-    lang as _lang, routing as _routing
+    lang as _lang, routing as _routing, reg as _reg, cache as _cache
 from plugins import widget as _widget, assetman as _assetman
 from . import _error
 
-_form_name_sub_re = _re.compile('[._]+')
+_CACHE_TTL = _reg.get('form.cache_ttl', 86400)
+_FORM_NAME_SUB_RE = _re.compile('[._]+')
 
 
 class Form(_ABC):
-    """Base Form.
+    """Base Form
     """
 
     def __init__(self, **kwargs):
@@ -39,19 +40,25 @@ class Form(_ABC):
         # Messages CSS
         self._messages_css = kwargs.get('messages_css', 'form-messages')
 
-        self._uid = _util.random_str()
+        self._cid = '{}.{}'.format(self.__module__, self.__class__.__name__)
+        self._nocache = kwargs.get('nocache', False)
+
+        if self._nocache:
+            self._uid = 'cid:{}'.format(self._cid)
+        else:
+            self._uid = kwargs.get('uid', _util.random_password(alphanum_only=True))
+
         self._created = _datetime.now()
-        self._name = kwargs.get('name') or _form_name_sub_re.sub('-', self.cid.lower())
+        self._name = kwargs.get('name', self._uid)
         self._path = kwargs.get('path')
         self._method = kwargs.get('method', 'post')
         self._action = kwargs.get('action')
+        self._current_step = 1
         self._steps = int(kwargs.get('steps', 1))
-        self._step = int(kwargs.get('step', 1))
         self._modal = kwargs.get('modal', False)
         self._modal_close_btn = kwargs.get('modal_close_btn', True)
         self._prevent_submit = kwargs.get('prevent_submit', False)
         self._redirect = kwargs.get('redirect')
-        self._nocache = kwargs.get('nocache', False)
 
         # Submit button
         self._submit_button = kwargs.get('submit_button', _widget.button.Submit(
@@ -75,80 +82,101 @@ class Form(_ABC):
 
         # <form>'s tag CSS class
         self._css = str(kwargs.get('css', '') + ' pytsite-form').strip()
-        self._css += ' form-name-{} form-cid-{}'.format(self._name, _form_name_sub_re.sub('-', self.cid.lower()))
+        self._css += ' form-name-{}'.format(self._name)
 
         # Title
         self._title = kwargs.get('title')
         self._hide_title = kwargs.get('hide_title', False)
         self._title_css = kwargs.get('title_css', '')
 
-        self._data = kwargs.get('data', {})
+        # Attributes
+        self._attrs = kwargs.get('attrs', {})
 
-        # Convert kwargs to data-attributes. It is convenient method to export additional form constructor's arguments
-        # in child classes. It is necessary to pass arguments back via AJAX requests when validating forms.
-        skip_data_kwargs = ('area_hidden_css', 'area_header_css', 'area_body_css', 'area_footer_css', 'messages_css',
-                            'name', 'path', 'method', 'action', 'steps', 'step', 'modal', 'modal_close_btn',
-                            'prevent_submit', 'redirect', 'nocache', 'get_widgets_ep', 'validation_ep', 'tpl', 'css',
-                            'title', 'title_css', 'data')
+        # Setup form
+        self._on_setup_form(**kwargs)
+
+        # Restore attributes
+        if not self._nocache:
+            attrs_cache = _cache.get_pool('form.form_attrs')
+            try:
+                for k, v in attrs_cache.get_hash(self._uid).items():
+                    self._attrs[k] = v
+            except _cache.error.KeyNotExist:
+                attrs_cache.put_hash(self._uid, {}, _CACHE_TTL)
+
+        # Set attributes from kwargs
         for k, v in kwargs.items():
-            if k not in skip_data_kwargs:
-                if isinstance(v, (tuple, list)):
-                    v = ','.join(v)
-                self._data.update({k: v})
+            if k.startswith('attr_'):
+                attr_key = k.replace('attr_', '')
+                self._attrs[attr_key] = v
+                if not self._nocache:
+                    _cache.get_pool('form.form_attrs').put_hash_item(self._uid, attr_key, v)
 
         # Assets
         if _router.request():
             _assetman.preload('form@css/form.css')
             _assetman.preload('form@js/pytsite-form.js')
 
-        # Setup form
-        self._on_setup_form(**kwargs)
+        # Store form's class ID
+        if not self._nocache:
+            _cache.get_pool('form.form_cid').put(self._uid, self._cid, _CACHE_TTL)
 
-    def setup_widgets(self, remove_existing: bool = True):
+    def setup_widgets(self):
         """Setup form's widgets.
         """
-        # Remove all previously added widgets
-        if remove_existing:
-            self.remove_widgets()
-
         # 'Submit' button for the last step
-        if self._steps == self._step:
+        if self._steps == self._current_step:
             if isinstance(self._submit_button, _widget.button.Submit):
                 self.add_widget(self._submit_button)
 
         # 'Next' button for all steps except the last one
-        if self._step < self._steps:
+        if self._current_step < self._steps:
             self.add_widget(_widget.button.Submit(
                 weight=20,
-                uid='action-forward-' + str(self._step + 1),
+                uid='action-forward-' + str(self._current_step + 1),
                 value=_lang.t('form@forward'),
                 form_area='footer',
                 color='primary',
                 icon='fa fa-fw fa-forward',
                 css='form-action-forward',
                 data={
-                    'to-step': self._step + 1,
+                    'to-step': self._current_step + 1,
                 }
             ))
 
         # 'Back' button for all steps except the first one
-        if self._step > 1:
+        if self._current_step > 1:
             self.add_widget(_widget.button.Button(
                 weight=10,
-                uid='action-backward-' + str(self._step - 1),
+                uid='action-backward-' + str(self._current_step - 1),
                 value=_lang.t('form@backward'),
                 form_area='footer',
-                form_step=self._step,
+                form_step=self._current_step,
                 icon='fa fa-fw fa-backward',
                 css='form-action-backward',
                 data={
-                    'to-step': self._step - 1,
+                    'to-step': self._current_step - 1,
                 }
             ))
 
+        # Ask form instance to setup widgets
         self._on_setup_widgets()
 
+        # Ask others to setup form's widgets
         _events.fire('form@setup_widgets.' + self.name.replace('-', '_'), frm=self)
+
+        # Restore widgets' values
+        if not self._nocache:
+            try:
+                for k, v in _cache.get_pool('form.form_values').get_hash(self._uid).items():
+                    try:
+                        self.get_widget(k).set_val(v)
+                    except _error.WidgetNotExist:
+                        pass
+            except _cache.error.KeyNotExist:
+                pass
+
+        return self
 
     def _on_setup_form(self, **kwargs):
         """Hook.
@@ -156,6 +184,7 @@ class Form(_ABC):
         """
         pass
 
+    @_abstractmethod
     def _on_setup_widgets(self):
         """Hook.
         """
@@ -186,12 +215,6 @@ class Form(_ABC):
     @property
     def created(self) -> _datetime:
         return self._created
-
-    @property
-    def cid(self) -> str:
-        """Class ID.
-        """
-        return '{}.{}'.format(self.__module__, self.__class__.__name__)
 
     @property
     def name(self) -> str:
@@ -340,12 +363,12 @@ class Form(_ABC):
         self._steps = value
 
     @property
-    def step(self) -> int:
-        return self._step
+    def current_step(self) -> int:
+        return self._current_step
 
-    @step.setter
-    def step(self, value: int):
-        self._step = value
+    @current_step.setter
+    def current_step(self, value: int):
+        self._current_step = value
 
     @property
     def modal(self) -> bool:
@@ -383,8 +406,13 @@ class Form(_ABC):
         self._redirect = val
 
     @property
-    def data(self) -> dict:
-        return self._data
+    def attrs(self) -> dict:
+        return self._attrs
+
+    def attr(self, k: str, default=None):
+        """Get form's attribute
+        """
+        return self._attrs.get(k, default)
 
     @property
     def path(self) -> str:
@@ -401,6 +429,11 @@ class Form(_ABC):
     def nocache(self, value: bool):
         self._nocache = value
 
+        if self._nocache:
+            self._uid = 'cid:{}'.format(self._cid)
+        else:
+            self._uid = _util.random_password(alphanum_only=True)
+
     @property
     def submit_button(self) -> _Optional[_widget.button.Submit]:
         return self._submit_button
@@ -412,12 +445,21 @@ class Form(_ABC):
 
         self._submit_button = value
 
-    def fill(self, values: dict, **kwargs):
+    def fill(self, values: _Mapping):
         """Fill form's widgets with values.
         """
-        for widget in self.get_widgets():
+        if not self._nocache:
+            cache_pool = _cache.get_pool('form.form_values')
+            try:
+                cache_pool.get_hash(self._uid)
+            except _cache.error.KeyNotExist:
+                cache_pool.put_hash(self._uid, {}, _CACHE_TTL)
+
+        for widget in self.get_widgets():  # type: _widget.Abstract
             if widget.name in values:
-                widget.set_val(values[widget.name], **kwargs)
+                widget.value = values[widget.name]
+                if not self._nocache:
+                    _cache.get_pool('form.form_values').put_hash_item(self._uid, widget.uid, widget.value)
 
         return self
 
@@ -466,8 +508,21 @@ class Form(_ABC):
 
     def submit(self):
         """Should be called by endpoint when it processing form submit.
-         """
-        return self._on_submit()
+        """
+        # Notify widgets
+        for w in self._widgets:
+            w.form_submit(self._uid)
+
+        # Notify form instance
+        r = self._on_submit()
+
+        # Clear cache
+        if not self._nocache:
+            _cache.get_pool('form.form_attrs').rm(self._uid)
+            _cache.get_pool('form.form_cid').rm(self._uid)
+            _cache.get_pool('form.form_values').rm(self._uid)
+
+        return r
 
     def render(self) -> str:
         """Render the form.
@@ -516,8 +571,8 @@ class Form(_ABC):
 
         return self
 
-    def get_widgets(self, filter_by: str = None, filter_val=None, _parent: _widget.Abstract = None):
-        """Get widgets.
+    def get_widgets(self, step: int = 1, filter_by: str = None, filter_val=None, _parent: _widget.Abstract = None):
+        """Get widgets
 
         :rtype: _List[_widget.Abstract]
         """
@@ -531,14 +586,14 @@ class Form(_ABC):
 
             try:
                 for widget in _parent.children:
-                    r += self.get_widgets(filter_by, filter_val, widget)
+                    r += self.get_widgets(step, filter_by, filter_val, widget)
             except NotImplementedError:
                 pass
 
         # Recursion depth == 0
         else:
             for widget in self._widgets:
-                r += self.get_widgets(filter_by, filter_val, widget)
+                r += self.get_widgets(step, filter_by, filter_val, widget)
 
         return r
 

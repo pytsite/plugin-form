@@ -29,7 +29,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         var self = this;
         self.em = em;
         self.id = em.attr('id');
-        self.cid = em.data('cid');
+        self.location = location.origin + location.pathname;
         self.weight = parseInt(em.data('weight'));
         self.getWidgetsEp = em.data('getWidgetsEp');
         self.validationEp = em.data('validationEp');
@@ -47,6 +47,19 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.messages = self.em.find('.form-messages').first();
         self.widgets = {};
 
+        // Form ID can be passed via query
+        if (!self.nocache) {
+            var h = assetman.parseLocation().hash;
+            if ('__form_uid' in h) {
+                self.id = h['__form_uid'];
+                em.attr('id', self.id);
+            }
+            else {
+                h['__form_uid'] = self.id;
+                window.location.hash = $.param(h);
+            }
+        }
+
         if (self.isModal)
             self.modalEm = em.closest('.modal');
 
@@ -54,6 +67,11 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         em.find('.form-area').each(function () {
             self.areas[$(this).data('formArea')] = $(this);
         });
+
+        // Initialize progress bar
+        self.progress = self.areas['body'].find('.progress');
+        self.progressBar = self.progress.find('.progress-bar');
+        self.progressBarInterval = null;
 
         // Notify about form creation
         self.em.trigger('formReady', [self]);
@@ -78,14 +96,6 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                     // Remove all elements which should not be transfered to server
                     self.em.find('[data-skip-serialization=True]').remove();
 
-                    // Add form data attributes as input elements
-                    var formData = self.em.data();
-                    for (var k in formData) {
-                        if (formData.hasOwnProperty(k)) {
-                            self.areas['hidden'].append($('<input type="hidden" name="__form_data_' + k + '" value="' + formData[k] + '">'));
-                        }
-                    }
-
                     // Disable submit button to prevent clicking it more than once while waiting for server response
                     self.em.find('.form-action-submit button').attr('disabled', true);
                 }
@@ -106,6 +116,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
             var r = {};
 
+            // Process every element which has 'name'
             self.em.find('[name]').each(function () {
                 if (skipTags instanceof Array && this.tagName in skipTags)
                     return;
@@ -113,8 +124,8 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                 if ($(this).attr('data-skip-serialization') === 'True')
                     return;
 
-                var dictListMatch = this.name.match(/([^\[]+)\[(\w+)\]\[\]$/);
-                var listMatch = this.name.match(/\[\]$/);
+                var dictListMatch = this.name.match(/([^\[]+)\[(\w+)]\[]$/);
+                var listMatch = this.name.match(/\[]$/);
 
                 var fName = this.name;
                 if (dictListMatch)
@@ -155,32 +166,18 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self._request = function (method, ep) {
             var data = self.serialize();
 
-            // Add form's data-attributes
-            var emDataAttrs = self.em.data();
-            for (var k in emDataAttrs) {
-                if (emDataAttrs.hasOwnProperty(k)) {
-                    data['__form_data_' + k] = emDataAttrs[k];
-                }
-            }
-
             // Merge data from location query
             $.extend(data, assetman.parseLocation(true).query);
-
-            // Calculate form location string
-            var q = assetman.parseLocation().query;
-            $.extend(q, self.serialize(['TEXTAREA']));
-            q['__form_data_step'] = self.currentStep;
-            var formLocation = location.origin + location.pathname + '?' + assetman.encodeQuery(q);
-
-            data['__form_data_step'] = self.currentStep;
-            data['__form_data_location'] = formLocation;
-            data['__form_data_uid'] = self.id;
 
             return httpApi.request(method, ep, data).fail(function (resp) {
                 if ('responseJSON' in resp && 'error' in resp.responseJSON)
                     self.addMessage(resp.responseJSON.error, 'danger');
                 else
                     self.addMessage(resp.statusText, 'danger');
+
+                // Hide progress bar
+                clearInterval(self.progressBarInterval);
+                self.progress.hide();
             });
         };
 
@@ -267,40 +264,39 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         };
 
         // Load widgets for the current step
-        self.loadWidgets = function () {
+        self.loadWidgets = function (step) {
             var deffer = $.Deferred();
-            var progress = self.areas['body'].find('.progress');
-            var progressBar = progress.find('.progress-bar');
 
-            // Show progress bar
-            progress.show();
-            progressBar.css('width', '0');
+            // Zero and show progress bar
+            self.progress.show();
+            self.progressBar.css('width', '0');
 
             // Progress bar smooth update
-            var progressBarInt = setInterval(function () {
-                var percents = parseInt(progressBar.attr('aria-valuenow')) + 1;
+            self.progressBarInterval = setInterval(function () {
+                var percents = parseInt(self.progressBar.attr('aria-valuenow')) + 1;
                 if (percents <= 100) {
-                    progressBar.width(percents + '%');
-                    progressBar.attr('aria-valuenow', percents);
+                    self.progressBar.width(percents + '%');
+                    self.progressBar.attr('aria-valuenow', percents);
                 }
             }, 250);
 
-            self._request('POST', self.getWidgetsEp + '/' + self.id).done(function (resp) {
+            var ep = self.getWidgetsEp + '/' + self.id + '/' + step;
+            self._request('POST', ep).done(function (resp) {
                 var numWidgetsToInit = resp.length;
                 var progressCount = 1;
 
                 for (var i = 0; i < numWidgetsToInit; i++) {
                     // Create widget from raw HTML data
                     var w = self.createWidget(resp[i]);
-                    w.formStep = self.currentStep;
+                    w.formStep = step;
 
                     // Increase progress bar value
                     var percents = (100 / numWidgetsToInit) * progressCount++;
-                    progressBar.width(percents + '%');
-                    progressBar.attr('aria-valuenow', percents);
+                    self.progressBar.width(percents + '%');
+                    self.progressBar.attr('aria-valuenow', percents);
 
                     // This widget is the last one
-                    if (self.countWidgets(self.currentStep) === numWidgetsToInit) {
+                    if (self.countWidgets(step) === numWidgetsToInit) {
                         // Sort all loaded widgets by weight
                         var sortedWidgets = [];
                         for (var uid in self.widgets) {
@@ -316,11 +312,8 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                         }
 
                         // Hide progress bar
-                        clearInterval(progressBarInt);
-                        progress.hide();
-
-                        // Fill widgets with data from location string
-                        self.fill(assetman.parseLocation().query);
+                        clearInterval(self.progressBarInterval);
+                        self.progress.hide();
 
                         deffer.resolve();
                     }
@@ -330,7 +323,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             return deffer;
         };
 
-        // Fill form with data
+        // Fill form's widgets with data
         self.fill = function (data) {
             for (k in data)
                 self.em.find('[name="' + k + '"]').val(data[k]);
@@ -342,7 +335,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.validate = function () {
             var deffer = $.Deferred();
 
-            // Mark current step as validation when validation will finish
+            // Mark current step as validated when validation will finish
             deffer.done(function () {
                 self.isCurrentStepValidated = true;
             });
@@ -355,7 +348,8 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                 for (var uid in self.widgets)
                     self.widgets[uid].clearState().clearMessages();
 
-                self._request('POST', self.validationEp + '/' + self.id).done(function (resp) {
+                var ep = self.validationEp + '/' + self.id + '/' + self.currentStep;
+                self._request('POST', ep).done(function (resp) {
                     if (resp.status) {
                         deffer.resolve();
                     }
@@ -448,22 +442,26 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             var deffer = $.Deferred();
             var submitButton = self.em.find('.form-action-submit button');
 
-            // Validating the form for the current step
+            // Disable user activity while widgets are loading
             submitButton.attr('disabled', true);
-            self.validate().done(function () {
-                // Disable user activity while widgets are loading
-                submitButton.attr('disabled', false);
 
+            // Validating the form for the current step
+            self.validate().done(function () {
                 // It is not a last step, so just load and show widgets for the next step
                 if (self.currentStep < self.totalSteps) {
                     // Hide widgets for the current step
                     self.hideWidgets(self.currentStep);
 
-                    // Step change
+                    // Increase current step
                     ++self.currentStep;
+                    if (!self.nocache) {
+                        var h = assetman.parseLocation().hash;
+                        h['__form_step'] = self.currentStep;
+                        window.location.hash = $.param(h);
+                    }
 
                     // Load widgets for the current step
-                    self.loadWidgets().done(function () {
+                    self.loadWidgets(self.currentStep).done(function () {
                         // Attach click handler to the 'Backward' button
                         self.em.find('.form-action-backward').click(self.backward);
 
@@ -481,12 +479,16 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                         if (self.currentStep > 1) {
                             $.scrollTo(self.em, 250);
                         }
+
+                        // Enable submit button
+                        submitButton.attr('disabled', false);
                     });
                 }
                 // It is a last step, just allowing submit the form
                 else {
                     self.readyToSubmit = true;
                     self.em.submit();
+                    submitButton.attr('disabled', false);
                 }
             }).fail(function () {
                 submitButton.attr('disabled', false);
@@ -500,6 +502,13 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.backward = function () {
             self.removeWidgets(self.currentStep);
             self.showWidgets(--self.currentStep);
+
+            if (!self.nocache) {
+                var h = assetman.parseLocation().hash;
+                h['__form_step'] = self.currentStep;
+                window.location.hash = $.param(h);
+            }
+
             $.scrollTo(self.em, 250);
         };
 

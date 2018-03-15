@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 2.0 (2018-03-15)
+
+Totally reworked.
+
+
 ### 1.5.1 (2018-03-09)
 
 Incorrect behaviour of `Form.redirect` property fixed.

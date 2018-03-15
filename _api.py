@@ -4,30 +4,30 @@ __author__ = 'Alexander Shepetko'
 __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
-from pytsite import util as _util
+from pytsite import util as _util, cache as _cache, logger as _logger
 from . import _form
 
 
-def dispense(request_inp: dict, fill_mode: str = None) -> _form.Form:
-    """Create and fill form based on the request input
+def dispense(uid: str) -> _form.Form:
+    """Dispense a form
     """
-    kwargs = {}
-    values = {}
+    try:
+        cid = uid.replace('cid:', '') if uid.startswith('cid:') else _cache.get_pool('form.form_cid').get(uid)
+        cls =_util.get_module_attr(cid)
+        if not issubclass(cls, _form.Form):
+            raise RuntimeError('Invalid form UID')
 
-    # Filter out non-widget (form-related) data
-    for k, v in request_inp.items():
-        if k.startswith('__form_data_'):
-            kwargs[k.replace('__form_data_', '')] = v
-        else:
-            values[k] = v
+        frm = cls(uid=uid)
 
-    form_cid = kwargs.get('cid')
-    if not form_cid:
-        raise RuntimeError('Form CID is not specified')
-    frm = _util.get_module_attr(form_cid)(**kwargs)
+        if uid.startswith('cid:') and not frm.nocache:
+            raise RuntimeError('Invalid form UID')
 
-    # Setup widgets
-    frm.step = int(kwargs.get('step', 1))
-    frm.setup_widgets()
+        return frm
 
-    return frm.fill(values, mode=fill_mode)
+    except _cache.error.KeyNotExist:
+        raise RuntimeError('Invalid form UID')
+
+    # Hide all other exceptions info from outer world
+    except Exception as e:
+        _logger.error(e)
+        raise RuntimeError('Invalid form UID')

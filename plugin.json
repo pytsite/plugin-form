@@ -1,6 +1,6 @@
 {
   "name": "form",
-  "version": "1.5.1",
+  "version": "2.0",
   "description": {
     "en": "Form",
     "ru": "Form",
@@ -13,13 +13,12 @@
     "url": "https://shepetko.com"
   },
   "requires": {
-    "packages": [],
     "plugins": [
       "assetman",
       "http_api",
       "jquery",
       "jquery_scrollto",
-      "widget>=1.4"
+      "widget>=1.6"
     ]
   }
 }
