@@ -115,6 +115,16 @@ class Form(_ABC):
         # Call setup hook
         self._on_setup_form(**kwargs)
 
+        # Cache attributes after after calling _on_setup_form()
+        if not self._nocache:
+            attrs_cache = _cache.get_pool('form.form_attrs')
+
+            if not attrs_cache.has(self._uid):
+                attrs_cache.put_hash(self._uid, {}, _CACHE_TTL)
+
+            for k, v in self._attrs.items():
+                attrs_cache.put_hash_item(self._uid, k, v)
+
         # Assets
         if _router.request():
             _assetman.preload('form@css/form.css')
