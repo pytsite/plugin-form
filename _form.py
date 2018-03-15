@@ -92,25 +92,28 @@ class Form(_ABC):
         # Attributes
         self._attrs = kwargs.get('attrs', {})
 
-        # Setup form
-        self._on_setup_form(**kwargs)
-
-        # Restore attributes
-        if not self._nocache:
-            attrs_cache = _cache.get_pool('form.form_attrs')
-            try:
-                for k, v in attrs_cache.get_hash(self._uid).items():
-                    self._attrs[k] = v
-            except _cache.error.KeyNotExist:
-                attrs_cache.put_hash(self._uid, {}, _CACHE_TTL)
-
         # Set attributes from kwargs
         for k, v in kwargs.items():
             if k.startswith('attr_'):
-                attr_key = k.replace('attr_', '')
-                self._attrs[attr_key] = v
-                if not self._nocache:
-                    _cache.get_pool('form.form_attrs').put_hash_item(self._uid, attr_key, v)
+                self._attrs[k.replace('attr_', '')] = v
+
+        if not self._nocache:
+            attrs_cache = _cache.get_pool('form.form_attrs')
+
+            if not attrs_cache.has(self._uid):
+                attrs_cache.put_hash(self._uid, {}, _CACHE_TTL)
+
+            # Cache attributes which has been set from kwargs
+            for k, v in self._attrs.items():
+                attrs_cache.put_hash_item(self._uid, k, v)
+
+            # Restore attributes from the cache
+            for k, v in attrs_cache.get_hash(self._uid).items():
+                if k not in self._attrs:
+                    self._attrs[k] = v
+
+        # Call setup hook
+        self._on_setup_form(**kwargs)
 
         # Assets
         if _router.request():
@@ -431,6 +434,7 @@ class Form(_ABC):
 
         if self._nocache:
             self._uid = 'cid:{}'.format(self._cid)
+            _cache.get_pool('form.form_attrs').rm(self._uid)
         else:
             self._uid = _util.random_password(alphanum_only=True)
 
