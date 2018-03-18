@@ -37,6 +37,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.isModal = em.data('modal') === 'True';
         self.modalEm = null;
         self.nocache = em.data('nocache') === 'True';
+        self.updateLocationHash = em.data('updateLocationHash') === 'True';
         self.submitEp = em.attr('submitEp');
         self.totalSteps = em.data('steps');
         self.currentStep = 0;
@@ -48,7 +49,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.widgets = {};
 
         // Form ID can be passed via query
-        if (!self.nocache) {
+        if (!self.nocache && self.updateLocationHash) {
             var h = assetman.parseLocation().hash;
             if ('__form_uid' in h) {
                 self.id = h['__form_uid'];
@@ -454,7 +455,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
                     // Increase current step
                     ++self.currentStep;
-                    if (!self.nocache) {
+                    if (!self.nocache && self.updateLocationHash && self.totalSteps > 1) {
                         var h = assetman.parseLocation().hash;
                         h['__form_step'] = self.currentStep;
                         window.location.hash = $.param(h);
@@ -503,7 +504,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             self.removeWidgets(self.currentStep);
             self.showWidgets(--self.currentStep);
 
-            if (!self.nocache) {
+            if (!self.nocache && self.updateLocationHash && self.totalSteps > 1) {
                 var h = assetman.parseLocation().hash;
                 h['__form_step'] = self.currentStep;
                 window.location.hash = $.param(h);

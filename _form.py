@@ -41,6 +41,7 @@ class Form(_ABC):
         self._messages_css = kwargs.get('messages_css', 'form-messages')
 
         self._cid = '{}.{}'.format(self.__module__, self.__class__.__name__)
+        self._update_location_hash = kwargs.get('update_location_hash', False)
         self._nocache = kwargs.get('nocache', False)
 
         if self._nocache:
@@ -449,6 +450,14 @@ class Form(_ABC):
             self._uid = _util.random_password(alphanum_only=True)
 
     @property
+    def update_location_hash(self) -> bool:
+        return self._update_location_hash
+
+    @update_location_hash.setter
+    def update_location_hash(self, value: bool):
+        self._update_location_hash = value
+
+    @property
     def submit_button(self) -> _Optional[_widget.button.Submit]:
         return self._submit_button
 
@@ -541,6 +550,9 @@ class Form(_ABC):
     def render(self) -> str:
         """Render the form.
         """
+        if self._nocache and self._attrs:
+            raise RuntimeError('The form cannot have attributes if it is non-cached')
+
         _events.fire('form@render.' + self.name.replace('-', '_'), frm=self)
 
         return _tpl.render(self._tpl, {'form': self})

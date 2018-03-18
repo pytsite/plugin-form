@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 2.1 (2018-03-18)
+
+New property added: `form.update_location_hash`.
+
+
 ### 2.0.2 (2018-03-15)
 
 `Form`'s init code fixed.
