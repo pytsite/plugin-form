@@ -61,6 +61,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             }
         }
 
+        // Find modal element
         if (self.isModal)
             self.modalEm = em.closest('.modal');
 
@@ -72,10 +73,6 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         // Initialize progress bar
         self.progress = self.areas['body'].find('.progress');
         self.progressBar = self.progress.find('.progress-bar');
-        self.progressBarInterval = null;
-
-        // Notify about form creation
-        self.em.trigger('formReady', [self]);
 
         // Form submit handler
         self.em.submit(function (event) {
@@ -103,6 +100,12 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             }
         });
 
+        /**
+         * Serialize form
+         *
+         * @param {bool} skipTags
+         * @returns {Object}
+         */
         self.serialize = function (skipTags) {
             function getEmValue(em) {
                 if (em.tagName === 'INPUT' && em.type === 'checkbox') {
@@ -156,14 +159,21 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             });
 
             for (var k in r) {
-                if (r[k] instanceof Array && r[k].length === 1)
+                if (r.hasOwnProperty(k) && r[k] instanceof Array && r[k].length === 1)
                     r[k] = r[k][0];
             }
 
             return r;
         };
 
-        // Do an AJAX request
+        /**
+         * Do an AJAX request
+         *
+         * @param {String} method
+         * @param {String} ep
+         * @returns {Promise}
+         * @private
+         */
         self._request = function (method, ep) {
             var data = self.serialize();
 
@@ -177,12 +187,16 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                     self.addMessage(resp.statusText, 'danger');
 
                 // Hide progress bar
-                clearInterval(self.progressBarInterval);
                 self.progress.hide();
             });
         };
 
-        // Count widgets for the step
+        /**
+         * Count form's widgets for the step
+         *
+         * @param {Number} step
+         * @returns {Number}
+         */
         self.countWidgets = function (step) {
             var r = 0;
 
@@ -194,17 +208,28 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             return r;
         };
 
-        // Set form's title
+        /**
+         * Set form's title
+         *
+         * @param {String} title
+         */
         self.setTitle = function (title) {
             self.title.html('<h4>' + title + '</h4>');
         };
 
-        // Clear form's messages
+        /**
+         * Clear form's messages
+         */
         self.clearMessages = function () {
             self.messages.html('');
         };
 
-        // Add a message to the form
+        /**
+         * Add a message to the form
+         *
+         * @param {String} msg
+         * @param {String} type
+         */
         self.addMessage = function (msg, type) {
             if (!type)
                 type = 'info';
@@ -214,10 +239,18 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             self.messages.append('<div class="alert alert-' + type + '" role="alert">' + msg + '</div>')
         };
 
-        // Create widget from the raw data
-        self.createWidget = function (widgetData) {
+        /**
+         * Create and place a widget on the form
+         *
+         * @param {String} html
+         * @returns {widget.Widget}
+         */
+        self.addWidget = function (html) {
             // Create widget object
-            var w = new widget.Widget(widgetData);
+            var w = new widget.Widget(html);
+
+            // Initially widget is hidden
+            w.hide();
 
             // Widget replaces another one with different UID
             if (w.replaces === w.uid)
@@ -228,34 +261,37 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                 self.removeWidget(w.uid);
 
             // Append widget to the list of loaded widgets
-            w.hide();
             self.widgets[w.uid] = w;
 
-            return w;
-        };
-
-        // Place widget to the form
-        self.addWidget = function (w) {
+            // Append widget's element to the form's HTML tree
             if (w.parentUid) {
-                if (w.parentUid in self.widgets)
-                    self.widgets[w.parentUid].em.append(w.em);
-                else
-                    throw "Parent widget '{}' is not found".format(w.parentUid)
+                self.getWidget(w.parentUid).appendChild(w);
             }
             else {
                 self.areas[w.formArea].append(w.em);
             }
+
+            return w
         };
 
-        // Get widget of the form
+        /**
+         * Get a widget of the form
+         *
+         * @param {String} uid
+         * @returns {widget.Widget}
+         */
         self.getWidget = function (uid) {
             if (!(uid in self.widgets))
-                throw "Widget '" + uid + "' does not exist.";
+                throw "Widget '" + uid + "' does not exist";
 
             return self.widgets[uid];
         };
 
-        // Remove widget from the form
+        /**
+         * Remove a widget from the form
+         *
+         * @param {String} uid
+         */
         self.removeWidget = function (uid) {
             if (!(uid in self.widgets))
                 return;
@@ -264,75 +300,68 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             delete self.widgets[uid];
         };
 
-        // Load widgets for the current step
+        /**
+         * Load widgets for the step
+         *
+         * @param {Number} step
+         * @returns {Promise}
+         */
         self.loadWidgets = function (step) {
             var deffer = $.Deferred();
 
             // Zero and show progress bar
-            self.progress.show();
             self.progressBar.css('width', '0');
+            self.progress.show();
 
-            // Progress bar smooth update
-            self.progressBarInterval = setInterval(function () {
-                var percents = parseInt(self.progressBar.attr('aria-valuenow')) + 1;
-                if (percents <= 100) {
-                    self.progressBar.width(percents + '%');
-                    self.progressBar.attr('aria-valuenow', percents);
-                }
-            }, 250);
-
-            var ep = self.getWidgetsEp + '/' + self.id + '/' + step;
-            self._request('POST', ep).done(function (resp) {
+            self._request('POST', self.getWidgetsEp + '/' + self.id + '/' + step).done(function (resp) {
                 var numWidgetsToInit = resp.length;
                 var progressCount = 1;
 
                 for (var i = 0; i < numWidgetsToInit; i++) {
-                    // Create widget from raw HTML data
-                    var w = self.createWidget(resp[i]);
+                    // Create widget from raw HTML string
+                    var w = self.addWidget(resp[i]);
+
+                    // Set form's step of the widget
                     w.formStep = step;
 
                     // Increase progress bar value
                     var percents = (100 / numWidgetsToInit) * progressCount++;
                     self.progressBar.width(percents + '%');
                     self.progressBar.attr('aria-valuenow', percents);
+                }
 
-                    // This widget is the last one
-                    if (self.countWidgets(step) === numWidgetsToInit) {
-                        // Sort all loaded widgets by weight
-                        var sortedWidgets = [];
-                        for (var uid in self.widgets) {
-                            sortedWidgets.push(self.widgets[uid]);
-                        }
-                        sortedWidgets.sort(function (a, b) {
-                            return a.weight - b.weight
-                        });
-
-                        // Add loaded widgets to the form
-                        for (var k = 0; k < sortedWidgets.length; k++) {
-                            self.addWidget(sortedWidgets[k]);
-                        }
-
-                        // Hide progress bar
-                        clearInterval(self.progressBarInterval);
-                        self.progress.hide();
-
-                        deffer.resolve();
-                    }
+                if (self.countWidgets(step) === numWidgetsToInit) {
+                    self.progress.hide();
+                    deffer.resolve();
+                }
+                else {
+                    throw 'Something went wrong';
                 }
             });
 
             return deffer;
         };
 
-        // Fill form's widgets with data
+        /**
+         * Fill form's widgets with values
+         *
+         * @param {Object} data
+         * @returns {Form}
+         */
         self.fill = function (data) {
-            for (k in data)
-                self.em.find('[name="' + k + '"]').val(data[k]);
+            for (k in data) {
+                if (data.hasOwnProperty(k))
+                    self.em.find('[name="' + k + '"]').val(data[k]);
+            }
 
             return self;
         };
 
-        // Do form validation
+        /**
+         * Do form validation
+         *
+         * @returns {Promise}
+         */
         self.validate = function () {
             var deffer = $.Deferred();
 
@@ -342,7 +371,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             });
 
             if (self.currentStep > 0) {
-                // Reset form's messages
+                // Clear form's messages
                 self.clearMessages();
 
                 // Reset widgets state
@@ -357,11 +386,16 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                     else {
                         // Add error messages for widgets
                         for (var widget_uid in resp.messages) {
-                            var w, widget_message;
-                            if (widget_uid in self.widgets)
-                                w = self.widgets[widget_uid];
+                            if (!resp.messages.hasOwnProperty(widget_uid))
+                                continue;
 
-                            // Convert single message to array for convenience
+                            var w, widget_message;
+
+                            if (widget_uid in self.widgets) {
+                                w = self.widgets[widget_uid];
+                            }
+
+                            // Convert single message to array
                             if (typeof resp.messages[widget_uid] === 'string') {
                                 resp.messages[widget_uid] = [resp.messages[widget_uid]];
                             }
@@ -410,7 +444,12 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             return deffer;
         };
 
-        // Show widgets for the step
+        /**
+         * Show widgets for the step
+         *
+         * @param {Number} step
+         * @returns {Form}
+         */
         self.showWidgets = function (step) {
             for (var uid in self.widgets) {
                 if (self.widgets[uid].formStep === step)
@@ -420,7 +459,12 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             return self;
         };
 
-        // Hide widgets for the step
+        /**
+         * Hide widgets for the step
+         *
+         * @param {Number} step
+         * @returns {Form}
+         */
         self.hideWidgets = function (step) {
             for (var uid in self.widgets) {
                 if (self.widgets[uid].formStep === step)
@@ -430,15 +474,26 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             return self;
         };
 
-        // Remove widgets for the step
+        /**
+         * Remove widgets of the step
+         *
+         * @param {Number} step
+         * @returns {Form}
+         */
         self.removeWidgets = function (step) {
             for (var uid in self.widgets) {
                 if (self.widgets[uid].formStep === step)
                     self.removeWidget(uid);
             }
+
+            return self;
         };
 
-        // Move to the next step
+        /**
+         * Move to the next step
+         *
+         * @returns {Promise}
+         */
         self.forward = function () {
             var deffer = $.Deferred();
             var submitButton = self.em.find('.form-action-submit button');
@@ -499,7 +554,9 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             return deffer;
         };
 
-        // Move to the previous step
+        /**
+         * Move to the previous step
+         */
         self.backward = function () {
             self.removeWidgets(self.currentStep);
             self.showWidgets(--self.currentStep);
@@ -515,13 +572,18 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
         /**
          * Reset form's HTML element
+         *
+         * @returns {Form}
          */
         self.reset = function () {
             self.em[0].reset();
+
+            return self;
         }
     }
 
     return {
-        Form: Form
+        Form: Form,
+        getForm: getForm
     }
 });

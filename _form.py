@@ -598,7 +598,7 @@ class Form(_ABC):
         return self
 
     def get_widgets(self, step: int = 1, filter_by: str = None, filter_val=None, _parent: _widget.Abstract = None):
-        """Get widgets
+        """Get flat list of widgets
 
         :rtype: _List[_widget.Abstract]
         """
@@ -606,15 +606,13 @@ class Form(_ABC):
 
         # Recursion depth > 0
         if _parent:
-            # Filter by some widget's attribute
+            # Add parent itself, optionally filter it
             if not filter_by or (filter_by and getattr(_parent, filter_by) == filter_val):
                 r.append(_parent)
 
-            try:
+            if isinstance(_parent, _widget.Container):
                 for widget in _parent.children:
                     r += self.get_widgets(step, filter_by, filter_val, widget)
-            except NotImplementedError:
-                pass
 
         # Recursion depth == 0
         else:
@@ -628,7 +626,7 @@ class Form(_ABC):
         """
         r = self.get_widgets(filter_by='uid', filter_val=uid)
         if not r:
-            raise _error.WidgetNotExist("Widget '{}' does not exist.".format(uid))
+            raise _error.WidgetNotExist("Widget '{}' does not exist".format(uid))
 
         return r[0]
 

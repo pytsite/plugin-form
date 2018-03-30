@@ -23,13 +23,7 @@ class PostGetWidgets(_routing.Controller):
         frm = _api.dispense(self.args.pop('uid'))
         frm.current_step = self.args.pop('step')
 
-        r = []
-        for w in frm.setup_widgets().get_widgets():
-            # Return only top-level widgets, because they render their children's HTML code by themselves
-            if not w.parent:
-                r.append(w.render())
-
-        return r
+        return [str(w) for w in frm.setup_widgets().get_widgets()]
 
 
 class PostValidate(_routing.Controller):

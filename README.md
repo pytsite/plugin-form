@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 2.2 (2018-03-30)
+
+Support for `widget-1.8`.
+
+
 ### 2.1 (2018-03-18)
 
 New property added: `form.update_location_hash`.
