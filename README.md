@@ -4,6 +4,13 @@
 ## Changelog
 
 
+### 2.3 (2018-04-04)
+
+- Support for form's HTML element data-attributes added.
+- New method `Form.val()` added.
+- `Form.fill()`'s logic changed a bit.
+
+
 ### 2.2 (2018-03-30)
 
 Support for `widget-1.8`.

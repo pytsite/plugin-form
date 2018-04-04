@@ -18,6 +18,9 @@
       data-prevent-submit="{{ form.prevent_submit }}"
       data-nocache="{{ form.nocache }}"
       data-update-location-hash="{{ form.update_location_hash }}"
+      {% for k, v in form.data.items() %}
+          data-{{ k }}="{{ v }}"
+      {% endfor %}
 >
     {#  Hidden area  #}
     <div class="form-area hidden sr-only {{ form.area_hidden_css }}" data-form-area="hidden"></div>

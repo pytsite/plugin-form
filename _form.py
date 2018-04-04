@@ -60,11 +60,12 @@ class Form(_ABC):
         self._modal_close_btn = kwargs.get('modal_close_btn', True)
         self._prevent_submit = kwargs.get('prevent_submit', False)
         self._redirect = kwargs.get('redirect')
+        self._data = kwargs.get('data', {})
 
         # Submit button
         self._submit_button = kwargs.get('submit_button', _widget.button.Submit(
             weight=20,
-            uid='action-submit',
+            uid='action_submit',
             value=_lang.t('form@save'),
             color='primary',
             icon='fa fa-fw fa-save',
@@ -420,6 +421,14 @@ class Form(_ABC):
         self._redirect = val
 
     @property
+    def data(self) -> dict:
+        return self._data
+
+    @data.setter
+    def data(self, val: dict):
+        self._data = val
+
+    @property
     def attrs(self) -> dict:
         return self._attrs
 
@@ -469,8 +478,9 @@ class Form(_ABC):
         self._submit_button = value
 
     def fill(self, values: _Mapping):
-        """Fill form's widgets with values.
+        """Fill form's widgets with values
         """
+        # Create form's cache placeholder
         if not self._nocache:
             cache_pool = _cache.get_pool('form.form_values')
             try:
@@ -478,11 +488,20 @@ class Form(_ABC):
             except _cache.error.KeyNotExist:
                 cache_pool.put_hash(self._uid, {}, _CACHE_TTL)
 
-        for widget in self.get_widgets():  # type: _widget.Abstract
-            if widget.name in values:
-                widget.value = values[widget.name]
+        for k, v in values.items():
+            # Try to fill widget by UID
+            try:
+                widget = self.get_widget(k)
+                widget.value = v
                 if not self._nocache:
                     _cache.get_pool('form.form_values').put_hash_item(self._uid, widget.uid, widget.value)
+
+            # Fill widgets with appropriate names
+            except _error.WidgetNotExist:
+                for widget in self.get_widgets(self.current_step, 'name', v):  # type: _widget.Abstract
+                    widget.value = v
+                    if not self._nocache:
+                        _cache.get_pool('form.form_values').put_hash_item(self._uid, widget.uid, widget.value)
 
         return self
 
@@ -629,6 +648,11 @@ class Form(_ABC):
             raise _error.WidgetNotExist("Widget '{}' does not exist".format(uid))
 
         return r[0]
+
+    def val(self, uid: str):
+        """Get widget's value
+        """
+        return self.get_widget(uid).value
 
     def has_widget(self, uid: str) -> bool:
         """Check if the form has widget.
