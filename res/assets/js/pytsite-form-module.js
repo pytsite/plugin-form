@@ -108,12 +108,8 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          */
         self.serialize = function (skipTags) {
             function getEmValue(em) {
-                if (em.tagName === 'INPUT' && em.type === 'checkbox') {
-                    if (em.name.indexOf('[]') > 0)
-                        return em.value;
-                    else
-                        return em.checked;
-                }
+                if (em.tagName === 'INPUT' && em.type === 'checkbox')
+                    return em.checked ? em.value : null;
                 else
                     return em.value;
             }
@@ -122,6 +118,11 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
             // Process every element which has 'name'
             self.em.find('[name]').each(function () {
+                var emVal = getEmValue(this);
+
+                if (emVal === null)
+                    return;
+
                 if (skipTags instanceof Array && this.tagName in skipTags)
                     return;
 
@@ -138,23 +139,23 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                 if (!(fName in r)) {
                     if (dictListMatch) {
                         r[fName] = {};
-                        r[fName][dictListMatch[2]] = [getEmValue(this)];
+                        r[fName][dictListMatch[2]] = [emVal];
                     }
                     else if (listMatch)
-                        r[fName] = [getEmValue(this)];
+                        r[fName] = [emVal];
                     else
-                        r[fName] = getEmValue(this);
+                        r[fName] = emVal;
                 }
                 else {
                     if (dictListMatch) {
                         if (!(dictListMatch[2] in r[fName]))
                             r[fName][dictListMatch[2]] = [];
-                        r[fName][dictListMatch[2]].push(getEmValue(this));
+                        r[fName][dictListMatch[2]].push(emVal);
                     }
                     else if (listMatch)
-                        r[fName].push(getEmValue(this));
+                        r[fName].push(emVal);
                     else
-                        r[fName] = getEmValue(this);
+                        r[fName] = emVal;
                 }
             });
 

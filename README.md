@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 2.3.1 (2018-04-07)
+
+Checkboxes serialization JS code fixed.
+
+
 ### 2.3 (2018-04-04)
 
 - Support for form's HTML element data-attributes added.
