@@ -15,6 +15,7 @@ from plugins import widget as _widget, assetman as _assetman
 from . import _error
 
 _CACHE_TTL = _reg.get('form.cache_ttl', 86400)
+_FORM_UID_RE = _re.compile('[a-zA-Z0-9]{64}')
 _FORM_NAME_SUB_RE = _re.compile('[._]+')
 
 
@@ -47,7 +48,9 @@ class Form(_ABC):
         if self._nocache:
             self._uid = 'cid:{}'.format(self._cid)
         else:
-            self._uid = kwargs.get('uid', _util.random_password(alphanum_only=True))
+            self._uid = kwargs.get('uid', _util.random_password(64, True))
+            if not _FORM_UID_RE.match(self._uid):
+                raise RuntimeError('Invalid form UID')
 
         self._created = _datetime.now()
         self._name = kwargs.get('name', self._uid)

@@ -4,6 +4,12 @@
 ## Changelog
 
 
+### 2.4 (2018-04-08)
+
+- Form's UID checking added.
+- Form's UID length increased to 64.
+
+
 ### 2.3.1 (2018-04-07)
 
 Checkboxes serialization JS code fixed.
