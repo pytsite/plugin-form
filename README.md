@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 2.4.2 (2018-04-10)
+
+Redirects and caching fixes.
+
+
 ### 2.4.1 (2018-04-10)
 
 `Form.redirect` property getter fixed.

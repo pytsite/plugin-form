@@ -10,7 +10,7 @@ from abc import ABC as _ABC, abstractmethod as _abstractmethod
 from collections import OrderedDict as _OrderedDict
 from datetime import datetime as _datetime
 from pytsite import util as _util, router as _router, validation as _validation, tpl as _tpl, events as _events, \
-    lang as _lang, routing as _routing, reg as _reg, cache as _cache
+    lang as _lang, reg as _reg, cache as _cache
 from plugins import widget as _widget, assetman as _assetman
 from . import _error
 
@@ -62,7 +62,7 @@ class Form(_ABC):
         self._modal = kwargs.get('modal', False)
         self._modal_close_btn = kwargs.get('modal_close_btn', True)
         self._prevent_submit = kwargs.get('prevent_submit', False)
-        self._redirect = kwargs.get('redirect')
+        self._redirect = kwargs.get('redirect', _router.request().inp.get('__redirect'))
         self._data = kwargs.get('data', {})
 
         # Submit button
@@ -105,6 +105,7 @@ class Form(_ABC):
         if not self._nocache:
             attrs_cache = _cache.get_pool('form.form_attrs')
 
+            # Create attrs cache hash item
             if not attrs_cache.has(self._uid):
                 attrs_cache.put_hash(self._uid, {}, _CACHE_TTL)
 
@@ -123,10 +124,6 @@ class Form(_ABC):
         # Cache attributes after after calling _on_setup_form()
         if not self._nocache:
             attrs_cache = _cache.get_pool('form.form_attrs')
-
-            if not attrs_cache.has(self._uid):
-                attrs_cache.put_hash(self._uid, {}, _CACHE_TTL)
-
             for k, v in self._attrs.items():
                 attrs_cache.put_hash_item(self._uid, k, v)
 
