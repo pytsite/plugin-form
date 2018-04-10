@@ -261,12 +261,12 @@ class Form(_ABC):
         """Get form's action URL
         """
         if not self._action:
-            try:
-                self._action = _router.rule_url('form@submit', {'uid': self._uid})
-            except _routing.error.RuleNotFound:
-                self._action = _router.base_url()
+            self._action = _router.rule_url('form@submit', {'uid': self._uid})
 
-        return _router.url(self._action, query={'__redirect': self.redirect}) if self.redirect else self._action
+        if self._redirect:
+            return _router.url(self._action, query={'__redirect': self._redirect})
+
+        return _router.url(self._action)
 
     @action.setter
     def action(self, value):
@@ -414,9 +414,6 @@ class Form(_ABC):
 
     @property
     def redirect(self) -> str:
-        if self._redirect is None and _router.request() and '__redirect' in _router.request().inp:
-            self._redirect = _router.request().inp.get('__redirect')
-
         return self._redirect
 
     @redirect.setter
