@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 2.5 (2018-04-11)
+
+`Form.nocache` setter disabled.
+
+
 ### 2.4.2 (2018-04-10)
 
 Redirects and caching fixes.

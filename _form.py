@@ -24,7 +24,7 @@ class Form(_ABC):
     """
 
     def __init__(self, **kwargs):
-        """Init.
+        """Init
         """
         # Widgets
         self._widgets = []  # type: _List[_widget.Abstract]
@@ -447,13 +447,7 @@ class Form(_ABC):
 
     @nocache.setter
     def nocache(self, value: bool):
-        self._nocache = value
-
-        if self._nocache:
-            self._uid = 'cid:{}'.format(self._cid)
-            _cache.get_pool('form.form_attrs').rm(self._uid)
-        else:
-            self._uid = _util.random_password(alphanum_only=True)
+        raise RuntimeError("'nocache' property should be set only via constructor")
 
     @property
     def update_location_hash(self) -> bool:
