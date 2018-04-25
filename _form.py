@@ -10,12 +10,12 @@ from abc import ABC as _ABC, abstractmethod as _abstractmethod
 from collections import OrderedDict as _OrderedDict
 from datetime import datetime as _datetime
 from pytsite import util as _util, router as _router, validation as _validation, tpl as _tpl, events as _events, \
-    lang as _lang, reg as _reg, cache as _cache
+    lang as _lang, reg as _reg, cache as _cache, http as _http
 from plugins import widget as _widget, assetman as _assetman
 from . import _error
 
 _CACHE_TTL = _reg.get('form.cache_ttl', 86400)
-_FORM_UID_RE = _re.compile('[a-zA-Z0-9]{64}')
+_CACHED_FORM_UID_RE = _re.compile('[a-zA-Z0-9]{64}')
 _FORM_NAME_SUB_RE = _re.compile('[._]+')
 
 
@@ -26,47 +26,31 @@ class Form(_ABC):
     def __init__(self, **kwargs):
         """Init
         """
+        # Cache pools
+        self._cids_cache = _cache.get_pool('form.form_cid')
+        self._attrs_cache = _cache.get_pool('form.form_attrs')
+        self._values_cache = _cache.get_pool('form.form_values')
+
         # Widgets
         self._widgets = []  # type: _List[_widget.Abstract]
 
-        # Form areas where widgets can be placed
+        # Form's areas where widgets can be placed
         self._areas = ('hidden', 'header', 'body', 'footer')
 
-        # Areas CSS classes
-        self._area_hidden_css = kwargs.get('area_hidden_css', '')
-        self._area_header_css = kwargs.get('area_header_css', '')
-        self._area_body_css = kwargs.get('area_body_css', '')
-        self._area_footer_css = kwargs.get('area_footer_css', '')
-
-        # Messages CSS
-        self._messages_css = kwargs.get('messages_css', 'form-messages')
-
+        # Form's class ID
         self._cid = '{}.{}'.format(self.__module__, self.__class__.__name__)
-        self._update_location_hash = kwargs.get('update_location_hash', False)
-        self._nocache = kwargs.get('nocache', False)
 
-        if self._nocache:
-            self._uid = 'cid:{}'.format(self._cid)
-        else:
-            self._uid = kwargs.get('uid', _util.random_password(64, True))
-            if not _FORM_UID_RE.match(self._uid):
-                raise RuntimeError('Invalid form UID')
+        # Form's UID
+        self._uid = kwargs.get('_uid', 'cid:{}'.format(self._cid))
 
-        self._created = _datetime.now()
-        self._name = kwargs.get('name', self._uid)
-        self._path = kwargs.get('path')
-        self._method = kwargs.get('method', 'post')
-        self._action = kwargs.get('action')
+        # Current step
         self._current_step = 1
-        self._steps = int(kwargs.get('steps', 1))
-        self._modal = kwargs.get('modal', False)
-        self._modal_close_btn = kwargs.get('modal_close_btn', True)
-        self._prevent_submit = kwargs.get('prevent_submit', False)
-        self._redirect = kwargs.get('redirect', _router.request().inp.get('__redirect'))
-        self._data = kwargs.get('data', {})
 
-        # Submit button
-        self._submit_button = kwargs.get('submit_button', _widget.button.Submit(
+        # If the form shuold be cached
+        self._cache = False
+
+        # Default submit button
+        self._submit_button = _widget.button.Submit(
             weight=20,
             uid='action_submit',
             value=_lang.t('form@save'),
@@ -74,81 +58,92 @@ class Form(_ABC):
             icon='fa fa-fw fa-save',
             form_area='footer',
             css='form-action-submit',
-        ))
-
-        # AJAX endpoint to load form's widgets
-        self._get_widgets_ep = kwargs.get('get_widgets_ep', 'form/widgets')
-
-        # AJAX endpoint to perform form validation
-        self._validation_ep = kwargs.get('validation_ep', 'form/validate')
-
-        # Form template
-        self._tpl = kwargs.get('tpl', 'form@form')
-
-        # <form>'s tag CSS class
-        self._css = str(kwargs.get('css', '') + ' pytsite-form').strip()
-        self._css += ' form-name-{}'.format(self._name)
-
-        # Title
-        self._title = kwargs.get('title')
-        self._hide_title = kwargs.get('hide_title', False)
-        self._title_css = kwargs.get('title_css', '')
+        )
 
         # Attributes
         self._attrs = kwargs.get('attrs', {})
+        self._attrs.update({
+            'created': _datetime.now(),
+            'name': '',
+            'method': 'post',
+            'action': '',
+            'data': {},
+            'path': _router.current_path(),
+            'redirect': _router.request().inp.get('__redirect'),
+            'steps': 1,
+            'modal': False,
+            'modal_close_btn': True,
+            'prevent_submit': False,
+            'update_location_hash': False,
+            'css': 'pytsite-form',
+            'area_hidden_css': '',
+            'area_header_css': '',
+            'area_body_css': '',
+            'area_footer_css': '',
+            'messages_css': 'form-messages',
+            'get_widgets_ep': 'form/widgets',
+            'validation_ep': 'form/validate',
+            'tpl': 'form@form',
+            'title': '',
+            'hide_title': False,
+            'title_css': '',
+        })
+
+        # Form's data is being reconstructed by _api.dispense(),
+        # restore attributes from cache
+        if '_uid' in kwargs:
+            if _CACHED_FORM_UID_RE.match(self._uid):
+                self._cache = True
+                if self._attrs_cache.has(self._uid):
+                    self._attrs.update(self._attrs_cache.get_hash(self._uid))
 
         # Set attributes from kwargs
-        for k, v in kwargs.items():
-            if k.startswith('attr_'):
-                self._attrs[k.replace('attr_', '')] = v
+        else:
+            for k, v in kwargs.items():
+                # Form must be cached to properly store non-standard attributes
+                if not (k in self._attrs or k.startswith('_') or self._cache):
+                    self._cache = True
+                    self._uid = _util.random_password(64, True)
 
-        if not self._nocache:
-            attrs_cache = _cache.get_pool('form.form_attrs')
+                if k == 'css':
+                    v += ' pytsite-form'
 
-            # Create attrs cache hash item
-            if not attrs_cache.has(self._uid):
-                attrs_cache.put_hash(self._uid, {}, _CACHE_TTL)
+                self._attrs[k] = v
 
-            # Cache attributes which has been set from kwargs
-            for k, v in self._attrs.items():
-                attrs_cache.put_hash_item(self._uid, k, v)
+        # Ask form to perform setup
+        self._on_setup_form()
 
-            # Restore attributes from the cache
-            for k, v in attrs_cache.get_hash(self._uid).items():
-                if k not in self._attrs:
-                    self._attrs[k] = v
+        # Set default action
+        if not self._attrs['action']:
+            self._attrs['action'] = _router.rule_url('form@submit', {'uid': self._uid})
 
-        # Call setup hook
-        self._on_setup_form(**kwargs)
+        # Add form's name to CSS
+        if not self.name:
+            self.name = self.uid
+        self.css += ' form-name-{}'.format(self.name)
 
-        # Cache attributes after after calling _on_setup_form()
-        if not self._nocache:
-            attrs_cache = _cache.get_pool('form.form_attrs')
-            for k, v in self._attrs.items():
-                attrs_cache.put_hash_item(self._uid, k, v)
+        # Cache attributes and form's CID
+        if self._cache:
+            self._cids_cache.put(self._uid, self._cid, _CACHE_TTL)
+            self._attrs_cache.put_hash(self._uid, self._attrs, _CACHE_TTL)
 
         # Assets
         if _router.request():
             _assetman.preload('form@css/form.css')
             _assetman.preload('form@js/pytsite-form.js')
 
-        # Store form's class ID
-        if not self._nocache:
-            _cache.get_pool('form.form_cid').put(self._uid, self._cid, _CACHE_TTL)
-
     def setup_widgets(self):
-        """Setup form's widgets.
+        """Setup widgets
         """
         # 'Submit' button for the last step
-        if self._steps == self._current_step:
-            if isinstance(self._submit_button, _widget.button.Submit):
-                self.add_widget(self._submit_button)
+        if self.steps == self._current_step and self._submit_button:
+            self.add_widget(self._submit_button)
 
         # 'Next' button for all steps except the last one
-        if self._current_step < self._steps:
+        if self._current_step < self.steps:
             self.add_widget(_widget.button.Submit(
                 weight=20,
-                uid='action-forward-' + str(self._current_step + 1),
+                uid='action_forward_' + str(self._current_step + 1),
                 value=_lang.t('form@forward'),
                 form_area='footer',
                 color='primary',
@@ -163,7 +158,7 @@ class Form(_ABC):
         if self._current_step > 1:
             self.add_widget(_widget.button.Button(
                 weight=10,
-                uid='action-backward-' + str(self._current_step - 1),
+                uid='action_backward_' + str(self._current_step - 1),
                 value=_lang.t('form@backward'),
                 form_area='footer',
                 form_step=self._current_step,
@@ -181,7 +176,7 @@ class Form(_ABC):
         _events.fire('form@setup_widgets.' + self.name.replace('-', '_'), frm=self)
 
         # Restore widgets' values
-        if not self._nocache:
+        if self._cache:
             try:
                 for k, v in _cache.get_pool('form.form_values').get_hash(self._uid).items():
                     try:
@@ -193,269 +188,342 @@ class Form(_ABC):
 
         return self
 
-    def _on_setup_form(self, **kwargs):
-        """Hook.
-        :param **kwargs:
+    def _on_setup_form(self):
+        """Hook
         """
         pass
 
     @_abstractmethod
     def _on_setup_widgets(self):
-        """Hook.
+        """Hook
         """
         pass
 
     def _on_validate(self):
-        """Hook.
+        """Hook
         """
         pass
 
     def _on_submit(self):
-        """Hook.
+        """Hook
         """
         pass
 
     @property
     def areas(self) -> tuple:
-        """Get form's areas.
+        """Get areas
         """
         return self._areas
 
     @property
     def uid(self) -> str:
-        """Get form ID.
+        """Get UID
         """
         return self._uid
 
     @property
     def created(self) -> _datetime:
-        return self._created
+        """Get time form created
+        """
+        return self._attrs['created']
 
     @property
     def name(self) -> str:
-        """Get form name.
+        """Get name
         """
-        return self._name
+        return self._attrs['name']
 
     @name.setter
     def name(self, value: str):
-        """Set form name.
+        """Set name
         """
-        self._name = value
+        self._attrs['name'] = value
 
     @property
     def method(self) -> str:
-        """Get method.
+        """Get action's method
         """
-        return self._method
+        return self._attrs['method']
 
     @method.setter
     def method(self, value):
-        self._method = value
+        """Set action's method
+        """
+        self._attrs['method'] = value
 
     @property
     def action(self) -> str:
-        """Get form's action URL
+        """Get action's URL
         """
-        if not self._action:
-            self._action = _router.rule_url('form@submit', {'uid': self._uid})
-
-        if self._redirect:
-            return _router.url(self._action, query={'__redirect': self._redirect})
-
-        return _router.url(self._action)
+        if not self._attrs['action']:
+            return ''
+        elif self.redirect:
+            return _router.url(self._attrs['action'], query={'__redirect': self.redirect})
+        else:
+            return _router.url(self._attrs['action'])
 
     @action.setter
     def action(self, value):
-        """Set form's action URL
+        """Set action's URL
         """
-        self._action = value
+        self._attrs['action'] = value
 
     @property
     def title(self) -> str:
-        """Get title.
+        """Get title
         """
-        return self._title
+        return self._attrs['title']
 
     @title.setter
     def title(self, value: str):
-        """Set title.
+        """Set title
         """
-        self._title = value
+        self._attrs['title'] = value
 
     @property
     def hide_title(self) -> bool:
-        """Get hide_title.
+        """Check if the title should be hidden
         """
-        return self._hide_title
+        return self._attrs['hide_title']
 
     @hide_title.setter
     def hide_title(self, value: bool):
-        """Set hide_title.
+        """Set if the title should be hidden
         """
-        self._hide_title = value
+        self._attrs['hide_title'] = value
 
     @property
     def css(self) -> str:
-        """Get CSS classes.
+        """Get CSS classes
         """
-        return self._css
+        return self._attrs['css']
 
     @css.setter
     def css(self, value):
-        """Set CSS classes.
+        """Set CSS classes
         """
-        self._css = value + ' pytsite-form' if 'pytsite-form' not in value else value
+        self._attrs['css'] = value + ' pytsite-form' if 'pytsite-form' not in value else value
 
     @property
     def area_hidden_css(self) -> str:
-        return self._area_hidden_css
+        """Get hidden area CSS classes
+        """
+        return self._attrs['area_hidden_css']
+
+    @area_hidden_css.setter
+    def area_hidden_css(self, value):
+        """Set hidden area CSS classes
+        """
+        self._attrs['area_hidden_css'] = value
 
     @property
     def area_header_css(self) -> str:
-        return self._area_header_css
+        """Get header area CSS classes
+        """
+        return self._attrs['area_header_css']
 
-    @property
-    def title_css(self) -> str:
-        return self._title_css
-
-    @property
-    def messages_css(self) -> str:
-        return self._messages_css
+    @area_header_css.setter
+    def area_header_css(self, value):
+        """Set header area CSS classes
+        """
+        self._attrs['area_header_css'] = value
 
     @property
     def area_body_css(self) -> str:
-        return self._area_body_css
+        """Get body area CSS classes
+        """
+        return self._attrs['area_body_css']
 
     @area_body_css.setter
     def area_body_css(self, value: str):
-        self._area_body_css = value
+        """Set body area CSS classes
+        """
+        self._attrs['area_body_css'] = value
 
     @property
     def area_footer_css(self) -> str:
-        return self._area_footer_css
+        """Get footer area CSS classes
+        """
+        return self._attrs['area_footer_css']
 
     @area_footer_css.setter
     def area_footer_css(self, value: str):
-        self._area_footer_css = value
+        """Set footer area CSS classes
+        """
+        self._attrs['area_footer_css'] = value
+
+    @property
+    def title_css(self) -> str:
+        """Get title CSS classes
+        """
+        return self._attrs['title_css']
+
+    @title_css.setter
+    def title_css(self, value):
+        """Set title CSS classes
+        """
+        self._attrs['title_css'] = value
+
+    @property
+    def messages_css(self) -> str:
+        """Get messages area CSS classes
+        """
+        return self._attrs['messages_css']
+
+    @messages_css.setter
+    def messages_css(self, value: str):
+        """Set messages area CSS classes
+        """
+        self._attrs['messages_css'] = value
 
     @property
     def get_widgets_ep(self) -> str:
-        return self._get_widgets_ep
+        """Get widgets retrieving HTTP API endpoint
+        """
+        return self._attrs['get_widgets_ep']
 
     @get_widgets_ep.setter
-    def get_widgets_ep(self, val: str):
-        self._get_widgets_ep = val
+    def get_widgets_ep(self, value: str):
+        """Set widgets retrieving HTTP API endpoint
+        """
+        self._attrs['get_widgets_ep'] = value
 
     @property
     def validation_ep(self) -> str:
-        """Get validation endpoint.
+        """Get validation HTTP API endpoint
         """
-        return self._validation_ep
+        return self._attrs['validation_ep']
 
     @validation_ep.setter
-    def validation_ep(self, value):
-        """Set validation endpoint.
+    def validation_ep(self, value: str):
+        """Set validation HTTP API endpoint
         """
-        self._validation_ep = value
-
-    @property
-    def values(self) -> _OrderedDict:
-        return _OrderedDict([(w.name, w.get_val()) for w in self.get_widgets()])
-
-    @property
-    def fields(self) -> list:
-        """Get list of names of all widgets.
-        """
-        return [w.uid for w in self.get_widgets()]
+        self._attrs['validation_ep'] = value
 
     @property
     def steps(self) -> int:
-        return self._steps
+        """Get number of form's steps
+        """
+        return self._attrs['steps']
 
     @steps.setter
     def steps(self, value: int):
-        self._steps = value
+        """Set number of form's steps
+        """
+        self._attrs['steps'] = value
 
     @property
     def current_step(self) -> int:
-        return self._current_step
+        """Get current step number
+        """
+        return self._attrs['current_step']
 
     @current_step.setter
     def current_step(self, value: int):
-        self._current_step = value
+        """Set current step number
+        """
+        self._attrs['current_step'] = value
 
     @property
     def modal(self) -> bool:
-        return self._modal
+        """Check if the form is modal
+        """
+        return self._attrs['modal']
 
     @modal.setter
     def modal(self, value: bool):
-        self._modal = value
+        """Set if the form is modal
+        """
+        self._attrs['modal'] = value
 
     @property
     def modal_close_btn(self) -> bool:
-        return self._modal_close_btn
+        """Check if the form has modal's close button
+        """
+        return self._attrs['modal_close_btn']
 
     @modal_close_btn.setter
     def modal_close_btn(self, value: bool):
-        self._modal_close_btn = value
+        """Set if the form has modal's close button
+        """
+        self._attrs['modal_close_btn'] = value
 
     @property
     def prevent_submit(self) -> bool:
-        return self._prevent_submit
+        """Check if the form should prevent submitting by pressing the 'Submit' button
+        """
+        return self._attrs['prevent_submit']
 
     @prevent_submit.setter
-    def prevent_submit(self, val: bool):
-        self._prevent_submit = val
+    def prevent_submit(self, value: bool):
+        """Set if the form should prevent submitting by pressing the 'Submit' button
+        """
+        self._attrs['prevent_submit'] = value
 
     @property
     def redirect(self) -> str:
-        return self._redirect
+        """Get redirect URL
+        """
+        return self._attrs['redirect']
 
     @redirect.setter
-    def redirect(self, val: str):
-        self._redirect = val
+    def redirect(self, value: str):
+        """Set redirect URL
+        """
+        self._attrs['redirect'] = value
+
+    @property
+    def update_location_hash(self) -> bool:
+        """Check if the form should update browser's location hash
+        """
+        return self._attrs['update_location_hash']
+
+    @update_location_hash.setter
+    def update_location_hash(self, value: bool):
+        """Set if the form should update browser's location hash
+        """
+        self._attrs['update_location_hash'] = value
 
     @property
     def data(self) -> dict:
-        return self._data
+        """Get data-attributes
+        """
+        return self._attrs['data']
 
     @data.setter
-    def data(self, val: dict):
-        self._data = val
+    def data(self, value: dict):
+        """Set data-attributes
+        """
+        self._attrs['data'] = value
 
     @property
     def attrs(self) -> dict:
+        """Get attributes
+        """
         return self._attrs
 
     def attr(self, k: str, default=None):
-        """Get form's attribute
+        """Get attribute
         """
         return self._attrs.get(k, default)
 
     @property
     def path(self) -> str:
-        if not self._path:
-            self._path = _router.current_path(True)
-
-        return self._path
-
-    @property
-    def nocache(self) -> bool:
-        return self._nocache
-
-    @nocache.setter
-    def nocache(self, value: bool):
-        raise RuntimeError("'nocache' property should be set only via constructor")
+        """Get form's path
+        """
+        return self._attrs['path']
 
     @property
-    def update_location_hash(self) -> bool:
-        return self._update_location_hash
+    def tpl(self) -> str:
+        """Get form's tpl
+        """
+        return self._attrs['tpl']
 
-    @update_location_hash.setter
-    def update_location_hash(self, value: bool):
-        self._update_location_hash = value
+    @tpl.setter
+    def tpl(self, value: str):
+        """Get form's tpl
+        """
+        self._attrs['tpl'] = value
 
     @property
     def submit_button(self) -> _Optional[_widget.button.Submit]:
@@ -468,43 +536,54 @@ class Form(_ABC):
 
         self._submit_button = value
 
+    @property
+    def values(self) -> _OrderedDict:
+        """Get form's values
+        """
+        return _OrderedDict([(w.name, w.get_val()) for w in self.get_widgets()])
+
+    @property
+    def fields(self) -> list:
+        """Get list of names of widgets
+        """
+        return [w.uid for w in self.get_widgets()]
+
     def fill(self, values: _Mapping):
         """Fill form's widgets with values
         """
         # Create form's cache placeholder
-        if not self._nocache:
-            cache_pool = _cache.get_pool('form.form_values')
+        if self._cache:
             try:
-                cache_pool.get_hash(self._uid)
+                self._values_cache.get_hash(self._uid)
             except _cache.error.KeyNotExist:
-                cache_pool.put_hash(self._uid, {}, _CACHE_TTL)
+                self._values_cache.put_hash(self._uid, {}, _CACHE_TTL)
 
         for k, v in values.items():
             # Try to fill widget by UID
             try:
                 widget = self.get_widget(k)
                 widget.value = v
-                if not self._nocache:
-                    _cache.get_pool('form.form_values').put_hash_item(self._uid, widget.uid, widget.value)
+                if self._cache:
+                    self._values_cache.put_hash_item(self._uid, widget.uid, widget.value)
 
             # Fill widgets with appropriate names
             except _error.WidgetNotExist:
-                for widget in self.get_widgets(self.current_step, 'name', v):  # type: _widget.Abstract
+                for widget in self.get_widgets(self._current_step, 'name', v):  # type: _widget.Abstract
                     widget.value = v
-                    if not self._nocache:
-                        _cache.get_pool('form.form_values').put_hash_item(self._uid, widget.uid, widget.value)
+                    if self._cache:
+                        self._values_cache.put_hash_item(self._uid, widget.uid, widget.value)
 
         return self
 
     def add_rule(self, widget_uid: str, rule: _validation.rule.Rule):
-        """Add a rule to the widget.
+        """Add an validation rule
         """
         self.get_widget(widget_uid).add_rule(rule)
 
         return self
 
     def add_rules(self, widget_uid: str, rules: tuple):
-        """Add multiple rules to the widgets.
+        """Add multiple validation rules
         """
         for rule in rules:
             self.add_rule(widget_uid, rule)
@@ -512,14 +591,14 @@ class Form(_ABC):
         return self
 
     def remove_rules(self, widget_uid: str):
-        """Remove validation's rules from the widget.
+        """Remove validation's rules
         """
         self.get_widget(widget_uid).clr_rules()
 
         return self
 
     def validate(self):
-        """Validate the form.
+        """Validate the form
         """
         errors = {}
 
@@ -540,7 +619,7 @@ class Form(_ABC):
         return self
 
     def submit(self):
-        """Should be called by endpoint when it processing form submit.
+        """Should be called by endpoint when it processing form submit
         """
         # Notify widgets
         for w in self._widgets:
@@ -549,31 +628,31 @@ class Form(_ABC):
         # Notify form instance
         r = self._on_submit()
 
+        if not r:
+            r = _http.response.Redirect(self.redirect or _router.request().referrer)
+
         # Clear cache
-        if not self._nocache:
-            _cache.get_pool('form.form_attrs').rm(self._uid)
-            _cache.get_pool('form.form_cid').rm(self._uid)
-            _cache.get_pool('form.form_values').rm(self._uid)
+        if self._cache:
+            self._attrs_cache.rm(self._uid)
+            self._cids_cache.rm(self._uid)
+            self._values_cache.rm(self._uid)
 
         return r
 
     def render(self) -> str:
-        """Render the form.
+        """Render the form
         """
-        if self._nocache and self._attrs:
-            raise RuntimeError('The form cannot have attributes if it is non-cached')
-
         _events.fire('form@render.' + self.name.replace('-', '_'), frm=self)
 
-        return _tpl.render(self._tpl, {'form': self})
+        return _tpl.render(self.tpl, {'form': self})
 
     def __str__(self) -> str:
-        """Render the form.
+        """Render the form
         """
         return self.render()
 
     def add_widget(self, widget: _widget.Abstract) -> _widget.Abstract:
-        """Add a widget.
+        """Add a widget
         """
         if widget.form_area not in self._areas:
             raise ValueError("Invalid form area: '{}'".format(widget.form_area))
@@ -587,7 +666,7 @@ class Form(_ABC):
         return widget
 
     def replace_widget(self, source_uid: str, replacement: _widget.Abstract):
-        """Replace a widget with another one.
+        """Replace a widget with another one
         """
         current = self.get_widget(source_uid)
         if not replacement.weight and current.weight:
@@ -601,7 +680,7 @@ class Form(_ABC):
         return self
 
     def hide_widget(self, uid):
-        """Hide a widget.
+        """Hide a widget
          """
         self.get_widget(uid).hide()
 
@@ -632,7 +711,7 @@ class Form(_ABC):
         return r
 
     def get_widget(self, uid: str) -> _widget.Abstract:
-        """Get a widget.
+        """Get a widget
         """
         r = self.get_widgets(filter_by='uid', filter_val=uid)
         if not r:
@@ -646,7 +725,7 @@ class Form(_ABC):
         return self.get_widget(uid).value
 
     def has_widget(self, uid: str) -> bool:
-        """Check if the form has widget.
+        """Check if the form has widget
         """
         try:
             self.get_widget(uid)
@@ -655,7 +734,7 @@ class Form(_ABC):
             return False
 
     def remove_widget(self, uid: str):
-        """Remove widget from the form.
+        """Remove widget from the form
         """
         w = self.get_widget(uid)
         w.clr_rules()
@@ -668,7 +747,7 @@ class Form(_ABC):
         return self
 
     def remove_widgets(self):
-        """Remove all added widgets.
+        """Remove all widgets
         """
         self._widgets = []
 

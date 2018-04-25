@@ -4,6 +4,12 @@
 ## Changelog
 
 
+### 3.0 (2018-04-25)
+
+- Forms caching issues fixed.
+- Forms attributes handling changed.
+
+
 ### 2.5 (2018-04-11)
 
 `Form.nocache` setter disabled.

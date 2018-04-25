@@ -13,16 +13,12 @@ def dispense(uid: str) -> _form.Form:
     """
     try:
         cid = uid.replace('cid:', '') if uid.startswith('cid:') else _cache.get_pool('form.form_cid').get(uid)
+
         cls =_util.get_module_attr(cid)
         if not issubclass(cls, _form.Form):
-            raise RuntimeError('Invalid form UID')
+            raise RuntimeError('Unexpected form class')
 
-        frm = cls(uid=uid)
-
-        if uid.startswith('cid:') and not frm.nocache:
-            raise RuntimeError('Invalid form UID')
-
-        return frm
+        return cls(_uid=uid)
 
     except _cache.error.KeyNotExist:
         raise RuntimeError('Invalid form UID')
@@ -30,4 +26,4 @@ def dispense(uid: str) -> _form.Form:
     # Hide all other exceptions info from outer world
     except Exception as e:
         _logger.error(e)
-        raise RuntimeError('Invalid form UID')
+        raise RuntimeError('Unexpected form exception')
