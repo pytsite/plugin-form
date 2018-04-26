@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 3.0.2 (2018-04-26)
+
+Form's HTML class name building fixed.
+
+
 ### 3.0.1 (2018-04-26)
 
 Form's CID now appends to the form's HTML class name.

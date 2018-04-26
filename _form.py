@@ -122,7 +122,7 @@ class Form(_ABC):
             self.name = self.uid
 
         # Add convenient CSS classes
-        self.css += ' form-cid-{}'.format(_CSS_SUB_RE.sub('_', self._cid))
+        self.css += ' form-cid-{}'.format(_CSS_SUB_RE.sub('-', self._cid.lower()).replace('--', '-'))
 
         # Cache attributes and form's CID
         if self._cache:
