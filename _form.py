@@ -16,7 +16,7 @@ from . import _error
 
 _CACHE_TTL = _reg.get('form.cache_ttl', 86400)
 _CACHED_FORM_UID_RE = _re.compile('[a-zA-Z0-9]{64}')
-_FORM_NAME_SUB_RE = _re.compile('[._]+')
+_CSS_SUB_RE = _re.compile('[._\s]+')
 
 
 class Form(_ABC):
@@ -117,10 +117,12 @@ class Form(_ABC):
         if not self._attrs['action']:
             self._attrs['action'] = _router.rule_url('form@submit', {'uid': self._uid})
 
-        # Add form's name to CSS
+        # Set name
         if not self.name:
             self.name = self.uid
-        self.css += ' form-name-{}'.format(self.name)
+
+        # Add convenient CSS classes
+        self.css += ' form-cid-{}'.format(_CSS_SUB_RE.sub('_', self._cid))
 
         # Cache attributes and form's CID
         if self._cache:
