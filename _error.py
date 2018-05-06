@@ -5,11 +5,12 @@ __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
 
-class ValidationError(Exception):
+class FormValidationError(Exception):
     """Validation Error Exception
     """
+
     def __init__(self, errors: dict):
-        """Init.
+        """Init
         """
         self._errors = errors
 
@@ -18,5 +19,11 @@ class ValidationError(Exception):
         return self._errors
 
 
-class WidgetNotExist(Exception):
-    pass
+class WidgetNotExistError(Exception):
+    def __init__(self, uid: str):
+        """Init
+        """
+        self._uid = uid
+
+    def __str__(self):
+        return "Widget '{}' does not exist".format(self._uid)

@@ -4,21 +4,24 @@ __author__ = 'Alexander Shepetko'
 __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
-from pytsite import util as _util, cache as _cache, logger as _logger
+from pytsite import util as _util, cache as _cache, logger as _logger, http as _http
 from . import _form
 
 
-def dispense(uid: str) -> _form.Form:
+def dispense(request: _http.Request, uid: str) -> _form.Form:
     """Dispense a form
     """
     try:
+        # Determine form's class
         cid = uid.replace('cid:', '') if uid.startswith('cid:') else _cache.get_pool('form.form_cid').get(uid)
+        cls = _util.get_module_attr(cid)
 
-        cls =_util.get_module_attr(cid)
+        # Prevent instantiating other classes via HTTP API
         if not issubclass(cls, _form.Form):
-            raise RuntimeError('Unexpected form class')
+            raise RuntimeError('Form class is not found')
 
-        return cls(_uid=uid)
+        # Instantiate form
+        return cls(request) if uid.startswith('cid:') else cls(request, _uid=uid)
 
     except _cache.error.KeyNotExist:
         raise RuntimeError('Invalid form UID')

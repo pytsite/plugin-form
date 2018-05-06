@@ -10,7 +10,7 @@ from . import _api
 
 class Submit(_routing.Controller):
     def exec(self):
-        frm = _api.dispense(self.args.pop('uid'))
+        frm = _api.dispense(self.request, self.args.pop('__form_uid'))
 
         # Setup widgets for all steps
         for step in range(1, frm.steps + 1):

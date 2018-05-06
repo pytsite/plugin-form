@@ -5,8 +5,8 @@ __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
 # Public API
-from . import _error as error
 from ._form import Form
+from ._error import FormValidationError, WidgetNotExistError
 
 
 def plugin_load():
@@ -37,9 +37,9 @@ def plugin_load_wsgi():
     from plugins import http_api
     from . import _controllers, _http_api_controllers
 
-    router.handle(_controllers.Submit, '/form/submit/<uid>', 'form@submit', methods='POST')
+    router.handle(_controllers.Submit, '/form/submit/<__form_uid>', 'form@submit', methods='POST')
 
-    http_api.handle('POST', 'form/widgets/<uid>/<step>', _http_api_controllers.PostGetWidgets,
+    http_api.handle('POST', 'form/widgets/<__form_uid>/<__form_step>', _http_api_controllers.PostGetWidgets,
                     'form@post_get_widgets')
-    http_api.handle('POST', 'form/validate/<uid>/<step>', _http_api_controllers.PostValidate,
+    http_api.handle('POST', 'form/validate/<__form_uid>/<__form_step>', _http_api_controllers.PostValidate,
                     'form@post_validate')

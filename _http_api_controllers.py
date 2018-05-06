@@ -17,31 +17,31 @@ class PostGetWidgets(_routing.Controller):
     def __init__(self):
         super().__init__()
 
-        self.args.add_formatter('step', _formatters.AboveZeroInt())
+        self.args.add_formatter('__form_step', _formatters.AboveZeroInt())
 
     def exec(self) -> list:
-        frm = _api.dispense(self.args.pop('uid'))
-        frm.current_step = self.args.pop('step')
+        frm = _api.dispense(self.request, self.args.pop('__form_uid'))
+        frm.current_step = self.args.pop('__form_step')
 
         return [str(w) for w in frm.setup_widgets().get_widgets()]
 
 
 class PostValidate(_routing.Controller):
-    """Default form's AJAX validator
+    """Default form's
     """
 
     def __init__(self):
         super().__init__()
 
-        self.args.add_formatter('step', _formatters.AboveZeroInt())
+        self.args.add_formatter('__form_step', _formatters.AboveZeroInt())
 
     def exec(self) -> dict:
         try:
-            frm = _api.dispense(self.args.pop('uid'))
-            frm.current_step = self.args.pop('step')
+            frm = _api.dispense(self.request, self.args.pop('__form_uid'))
+            frm.current_step = self.args.pop('__form_step')
             frm.setup_widgets().fill(self.args).validate()
 
             return {'status': True}
 
-        except _error.ValidationError as e:
+        except _error.FormValidationError as e:
             return {'status': False, 'messages': e.errors}

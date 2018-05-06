@@ -4,6 +4,17 @@
 ## Changelog
 
 
+### 4.0 (2018-05-06)
+
+- `Form.__init__()` signature changed.
+- Caching issues fixed.
+- New method: `Form.set_attr()`.
+- `Form.attrs` property removed.
+- `errors` module removed from the public API.
+- New classes exposed to the public API: `FormValidationError`,
+  `WidgetNotExistError`.
+
+
 ### 3.0.2 (2018-04-26)
 
 Form's HTML class name building fixed.

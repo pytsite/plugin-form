@@ -14,18 +14,20 @@ from pytsite import util as _util, router as _router, validation as _validation,
 from plugins import widget as _widget, assetman as _assetman
 from . import _error
 
-_CACHE_TTL = _reg.get('form.cache_ttl', 86400)
-_CACHED_FORM_UID_RE = _re.compile('[a-zA-Z0-9]{64}')
-_CSS_SUB_RE = _re.compile('[._\s]+')
+_CACHE_TTL = _reg.get('form.cache_ttl', 604800)  # 7 days
+_CSS_SUB_RE = _re.compile('[^a-zA-Z0-9\-]+')
 
 
 class Form(_ABC):
     """Base Form
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, request: _http.Request, **kwargs):
         """Init
         """
+        # Request
+        self._request = request
+
         # Cache pools
         self._cids_cache = _cache.get_pool('form.form_cid')
         self._attrs_cache = _cache.get_pool('form.form_attrs')
@@ -40,13 +42,13 @@ class Form(_ABC):
         # Form's class ID
         self._cid = '{}.{}'.format(self.__module__, self.__class__.__name__)
 
-        # Form's UID
-        self._uid = kwargs.get('_uid', 'cid:{}'.format(self._cid))
+        # Default form's UID
+        self._uid = 'cid:{}'.format(self._cid)
 
         # Current step
         self._current_step = 1
 
-        # If the form shuold be cached
+        # If the form should be cached
         self._cache = False
 
         # Default submit button
@@ -69,7 +71,7 @@ class Form(_ABC):
             'action': '',
             'data': {},
             'path': _router.current_path(),
-            'redirect': _router.request().inp.get('__redirect'),
+            'redirect': self._request.inp.get('__redirect', '') if self._request else '',
             'steps': 1,
             'modal': False,
             'modal_close_btn': True,
@@ -89,50 +91,46 @@ class Form(_ABC):
             'title_css': '',
         })
 
-        # Form's data is being reconstructed by _api.dispense(),
-        # restore attributes from cache
+        # Presence of '_uid' kwarg means that form's is being reconstructed by _api.dispense().
+        # If form's UID shows that form was cached, it must be tried to restore form's attributes from cache.
         if '_uid' in kwargs:
-            if _CACHED_FORM_UID_RE.match(self._uid):
-                self._cache = True
-                if self._attrs_cache.has(self._uid):
-                    self._attrs.update(self._attrs_cache.get_hash(self._uid))
+            self._uid = kwargs.pop('_uid')
+            self._cache = True
 
-        # Set attributes from kwargs
+            # Restore form's attributes from cache
+            if self._attrs_cache.has(self._uid):
+                self._attrs.update(self._attrs_cache.get_hash(self._uid))
+
+        # Normal form initialization
         else:
+            # Set attributes from kwargs
             for k, v in kwargs.items():
-                # Form must be cached to properly store non-standard attributes
-                if not (k in self._attrs or k.startswith('_') or self._cache):
-                    self._cache = True
-                    self._uid = _util.random_password(64, True)
+                self.set_attr(k, v)
 
-                if k == 'css':
-                    v += ' pytsite-form'
+            # Ask form to perform setup
+            self._on_setup_form()
 
-                self._attrs[k] = v
+            # Check if the form must be cached after execution of self._on_setup_form() hook
+            if self.steps > 1 and not self._cache:
+                self._cache = True
+                for k, v in self._attrs.items():
+                    self.set_attr(k, v)
 
-        # Ask form to perform setup
-        self._on_setup_form()
+            # Set default action
+            if not self.action:
+                self.action = _router.rule_url('form@submit', {'__form_uid': self._uid})
 
-        # Set default action
-        if not self._attrs['action']:
-            self._attrs['action'] = _router.rule_url('form@submit', {'uid': self._uid})
+            # Set default name
+            if not self.name:
+                self.name = self._uid
 
-        # Set name
-        if not self.name:
-            self.name = self.uid
+            # Add convenient CSS classes
+            self.css += ' form-cid-{}'.format(_CSS_SUB_RE.sub('-', self._cid.lower()).replace('--', '-'))
 
-        # Add convenient CSS classes
-        self.css += ' form-cid-{}'.format(_CSS_SUB_RE.sub('-', self._cid.lower()).replace('--', '-'))
-
-        # Cache attributes and form's CID
-        if self._cache:
-            self._cids_cache.put(self._uid, self._cid, _CACHE_TTL)
-            self._attrs_cache.put_hash(self._uid, self._attrs, _CACHE_TTL)
-
-        # Assets
-        if _router.request():
-            _assetman.preload('form@css/form.css')
-            _assetman.preload('form@js/pytsite-form.js')
+            # Assets
+            if self._request:
+                _assetman.preload('form@css/form.css')
+                _assetman.preload('form@js/pytsite-form.js')
 
     def setup_widgets(self):
         """Setup widgets
@@ -183,7 +181,7 @@ class Form(_ABC):
                 for k, v in _cache.get_pool('form.form_values').get_hash(self._uid).items():
                     try:
                         self.get_widget(k).set_val(v)
-                    except _error.WidgetNotExist:
+                    except _error.WidgetNotExistError:
                         pass
             except _cache.error.KeyNotExist:
                 pass
@@ -210,6 +208,29 @@ class Form(_ABC):
         """Hook
         """
         pass
+
+    def set_attr(self, k: str, v):
+        # If attribute is non-standard and form is not intended ot be cached,
+        # mark form as "cached" and update its UID
+        if k not in self._attrs and not self._cache:
+            self._cache = True
+            self._uid = _util.random_password(64, True)
+            self._cids_cache.put(self._uid, self._cid, _CACHE_TTL)
+            self._attrs_cache.put_hash(self._uid, self._attrs, _CACHE_TTL)
+
+        if k == 'css' and 'pytsite-form' not in v:
+            v += ' pytsite-form'
+
+        self._attrs[k] = v
+
+        if self._cache:
+            self._attrs_cache.put_hash_item(self._uid, k, v)
+
+    @property
+    def request(self) -> _http.Request:
+        """Get HTTP request instance
+        """
+        return self._request
 
     @property
     def areas(self) -> tuple:
@@ -239,7 +260,7 @@ class Form(_ABC):
     def name(self, value: str):
         """Set name
         """
-        self._attrs['name'] = value
+        self.set_attr('name', value)
 
     @property
     def method(self) -> str:
@@ -251,24 +272,24 @@ class Form(_ABC):
     def method(self, value):
         """Set action's method
         """
-        self._attrs['method'] = value
+        self.set_attr('method', value)
 
     @property
     def action(self) -> str:
         """Get action's URL
         """
-        if not self._attrs['action']:
-            return ''
-        elif self.redirect:
-            return _router.url(self._attrs['action'], query={'__redirect': self.redirect})
-        else:
-            return _router.url(self._attrs['action'])
+        v = self._attrs['action']
+
+        if v and self.redirect:
+            v = _router.url(v, query={'__redirect': self.redirect})
+
+        return v
 
     @action.setter
     def action(self, value):
         """Set action's URL
         """
-        self._attrs['action'] = value
+        self.set_attr('action', value)
 
     @property
     def title(self) -> str:
@@ -280,7 +301,7 @@ class Form(_ABC):
     def title(self, value: str):
         """Set title
         """
-        self._attrs['title'] = value
+        self.set_attr('title', value)
 
     @property
     def hide_title(self) -> bool:
@@ -292,7 +313,7 @@ class Form(_ABC):
     def hide_title(self, value: bool):
         """Set if the title should be hidden
         """
-        self._attrs['hide_title'] = value
+        self.set_attr('hide_title', value)
 
     @property
     def css(self) -> str:
@@ -304,7 +325,7 @@ class Form(_ABC):
     def css(self, value):
         """Set CSS classes
         """
-        self._attrs['css'] = value + ' pytsite-form' if 'pytsite-form' not in value else value
+        self.set_attr('css', value)
 
     @property
     def area_hidden_css(self) -> str:
@@ -316,7 +337,7 @@ class Form(_ABC):
     def area_hidden_css(self, value):
         """Set hidden area CSS classes
         """
-        self._attrs['area_hidden_css'] = value
+        self.set_attr('area_hidden_css', value)
 
     @property
     def area_header_css(self) -> str:
@@ -328,7 +349,7 @@ class Form(_ABC):
     def area_header_css(self, value):
         """Set header area CSS classes
         """
-        self._attrs['area_header_css'] = value
+        self.set_attr('area_header_css', value)
 
     @property
     def area_body_css(self) -> str:
@@ -340,7 +361,7 @@ class Form(_ABC):
     def area_body_css(self, value: str):
         """Set body area CSS classes
         """
-        self._attrs['area_body_css'] = value
+        self.set_attr('area_body_css', value)
 
     @property
     def area_footer_css(self) -> str:
@@ -352,7 +373,7 @@ class Form(_ABC):
     def area_footer_css(self, value: str):
         """Set footer area CSS classes
         """
-        self._attrs['area_footer_css'] = value
+        self.set_attr('area_footer_css', value)
 
     @property
     def title_css(self) -> str:
@@ -364,7 +385,7 @@ class Form(_ABC):
     def title_css(self, value):
         """Set title CSS classes
         """
-        self._attrs['title_css'] = value
+        self.set_attr('title_css', value)
 
     @property
     def messages_css(self) -> str:
@@ -376,7 +397,7 @@ class Form(_ABC):
     def messages_css(self, value: str):
         """Set messages area CSS classes
         """
-        self._attrs['messages_css'] = value
+        self.set_attr('messages_css', value)
 
     @property
     def get_widgets_ep(self) -> str:
@@ -388,7 +409,7 @@ class Form(_ABC):
     def get_widgets_ep(self, value: str):
         """Set widgets retrieving HTTP API endpoint
         """
-        self._attrs['get_widgets_ep'] = value
+        self.set_attr('get_widgets_ep', value)
 
     @property
     def validation_ep(self) -> str:
@@ -400,7 +421,7 @@ class Form(_ABC):
     def validation_ep(self, value: str):
         """Set validation HTTP API endpoint
         """
-        self._attrs['validation_ep'] = value
+        self.set_attr('validation_ep', value)
 
     @property
     def steps(self) -> int:
@@ -412,19 +433,19 @@ class Form(_ABC):
     def steps(self, value: int):
         """Set number of form's steps
         """
-        self._attrs['steps'] = value
+        self.set_attr('steps', value)
 
     @property
     def current_step(self) -> int:
         """Get current step number
         """
-        return self._attrs['current_step']
+        return self._current_step
 
     @current_step.setter
     def current_step(self, value: int):
         """Set current step number
         """
-        self._attrs['current_step'] = value
+        self._current_step = value
 
     @property
     def modal(self) -> bool:
@@ -436,7 +457,7 @@ class Form(_ABC):
     def modal(self, value: bool):
         """Set if the form is modal
         """
-        self._attrs['modal'] = value
+        self.set_attr('modal', value)
 
     @property
     def modal_close_btn(self) -> bool:
@@ -448,7 +469,7 @@ class Form(_ABC):
     def modal_close_btn(self, value: bool):
         """Set if the form has modal's close button
         """
-        self._attrs['modal_close_btn'] = value
+        self.set_attr('modal_close_btn', value)
 
     @property
     def prevent_submit(self) -> bool:
@@ -460,7 +481,7 @@ class Form(_ABC):
     def prevent_submit(self, value: bool):
         """Set if the form should prevent submitting by pressing the 'Submit' button
         """
-        self._attrs['prevent_submit'] = value
+        self.set_attr('prevent_submit', value)
 
     @property
     def redirect(self) -> str:
@@ -472,7 +493,7 @@ class Form(_ABC):
     def redirect(self, value: str):
         """Set redirect URL
         """
-        self._attrs['redirect'] = value
+        self.set_attr('redirect', value)
 
     @property
     def update_location_hash(self) -> bool:
@@ -484,7 +505,7 @@ class Form(_ABC):
     def update_location_hash(self, value: bool):
         """Set if the form should update browser's location hash
         """
-        self._attrs['update_location_hash'] = value
+        self.set_attr('update_location_hash', value)
 
     @property
     def data(self) -> dict:
@@ -496,7 +517,7 @@ class Form(_ABC):
     def data(self, value: dict):
         """Set data-attributes
         """
-        self._attrs['data'] = value
+        self.set_attr('data', value)
 
     @property
     def attrs(self) -> dict:
@@ -525,7 +546,7 @@ class Form(_ABC):
     def tpl(self, value: str):
         """Get form's tpl
         """
-        self._attrs['tpl'] = value
+        self.set_attr('tpl', value)
 
     @property
     def submit_button(self) -> _Optional[_widget.button.Submit]:
@@ -569,7 +590,7 @@ class Form(_ABC):
                     self._values_cache.put_hash_item(self._uid, widget.uid, widget.value)
 
             # Fill widgets with appropriate names
-            except _error.WidgetNotExist:
+            except _error.WidgetNotExistError:
                 for widget in self.get_widgets(self._current_step, 'name', v):  # type: _widget.Abstract
                     widget.value = v
                     if self._cache:
@@ -614,7 +635,7 @@ class Form(_ABC):
                 errors[w.uid].append(str(e))
 
         if errors:
-            raise _error.ValidationError(errors)
+            raise _error.FormValidationError(errors)
 
         self._on_validate()
 
@@ -630,8 +651,8 @@ class Form(_ABC):
         # Notify form instance
         r = self._on_submit()
 
-        if not r:
-            r = _http.response.Redirect(self.redirect or _router.request().referrer)
+        if not r and (self.redirect or self._request):
+            r = _http.RedirectResponse(self.redirect or self._request.referrer)
 
         # Clear cache
         if self._cache:
@@ -717,7 +738,7 @@ class Form(_ABC):
         """
         r = self.get_widgets(filter_by='uid', filter_val=uid)
         if not r:
-            raise _error.WidgetNotExist("Widget '{}' does not exist".format(uid))
+            raise _error.WidgetNotExistError(uid)
 
         return r[0]
 
@@ -732,7 +753,7 @@ class Form(_ABC):
         try:
             self.get_widget(uid)
             return True
-        except _error.WidgetNotExist:
+        except _error.WidgetNotExistError:
             return False
 
     def remove_widget(self, uid: str):
