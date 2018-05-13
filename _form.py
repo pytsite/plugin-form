@@ -89,6 +89,7 @@ class Form(_ABC):
             'title': '',
             'hide_title': False,
             'title_css': '',
+            'assets': ['form@css/form.css', 'form@js/pytsite-form.js']
         })
 
         # Presence of '_uid' kwarg means that form's is being reconstructed by _api.dispense().
@@ -127,10 +128,9 @@ class Form(_ABC):
             # Add convenient CSS classes
             self.css += ' form-cid-{}'.format(_CSS_SUB_RE.sub('-', self._cid.lower()).replace('--', '-'))
 
-            # Assets
-            if self._request:
-                _assetman.preload('form@css/form.css')
-                _assetman.preload('form@js/pytsite-form.js')
+            # Load assets
+            for asset in self.assets:
+                _assetman.preload(asset)
 
     def setup_widgets(self):
         """Setup widgets
@@ -513,17 +513,17 @@ class Form(_ABC):
         """
         return self._attrs['data']
 
+    @property
+    def assets(self) -> list:
+        """Get assets list
+        """
+        return self._attrs['assets']
+
     @data.setter
     def data(self, value: dict):
         """Set data-attributes
         """
         self.set_attr('data', value)
-
-    @property
-    def attrs(self) -> dict:
-        """Get attributes
-        """
-        return self._attrs
 
     def attr(self, k: str, default=None):
         """Get attribute

@@ -22,10 +22,10 @@
       {% endfor %}
 >
     {#  Hidden area  #}
-    <div class="form-area hidden sr-only {{ form.area_hidden_css }}" data-form-area="hidden"></div>
+    <div class="form-area form-area-hidden hidden sr-only {{ form.area_hidden_css }}" data-form-area="hidden"></div>
 
     {#  Header area  #}
-    <div class="form-area {% if form.modal %}modal-header{% endif %} {{ form.area_header_css }}"
+    <div class="form-area form-area-header {% if form.modal %}modal-header{% endif %} {{ form.area_header_css }}"
          data-form-area="header">
 
         {% if form.modal and form.modal_close_btn %}
@@ -46,14 +46,14 @@
     </div>
 
     {# Body area #}
-    <div class="form-area {% if form.modal %}modal-body{% endif %} {{ form.area_body_css }}" data-form-area="body">
+    <div class="form-area form-area-body {% if form.modal %}modal-body{% endif %} {{ form.area_body_css }}" data-form-area="body">
         <div class="progress{% if 'row' in form.area_body_css %} col-xs-12{% endif %}">
             <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0"></div>
         </div>
     </div>
 
     {# Footer area #}
-    <div class="form-area {% if form.modal %}modal-footer{% endif %} {{ form.area_footer_css }}" data-form-area="footer"></div>
+    <div class="form-area form-area-footer {% if form.modal %}modal-footer{% endif %} {{ form.area_footer_css }}" data-form-area="footer"></div>
 </form>
 
 

@@ -4,12 +4,18 @@
 ## Changelog
 
 
+### 4.1 (2018-05-13)
+
+- `Form.assets` property added.
+- Additional CSS classes for form's areas added.
+- `Form.attrs` property removed.
+
+
 ### 4.0 (2018-05-06)
 
 - `Form.__init__()` signature changed.
 - Caching issues fixed.
 - New method: `Form.set_attr()`.
-- `Form.attrs` property removed.
 - `errors` module removed from the public API.
 - New classes exposed to the public API: `FormValidationError`,
   `WidgetNotExistError`.
