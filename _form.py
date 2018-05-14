@@ -128,10 +128,6 @@ class Form(_ABC):
             # Add convenient CSS classes
             self.css += ' form-cid-{}'.format(_CSS_SUB_RE.sub('-', self._cid.lower()).replace('--', '-'))
 
-            # Load assets
-            for asset in self.assets:
-                _assetman.preload(asset)
-
     def setup_widgets(self):
         """Setup widgets
         """

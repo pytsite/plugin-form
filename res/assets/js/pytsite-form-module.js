@@ -36,7 +36,6 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.preventSubmit = em.data('preventSubmit') === 'True';
         self.isModal = em.data('modal') === 'True';
         self.modalEm = null;
-        self.nocache = em.data('nocache') === 'True';
         self.updateLocationHash = em.data('updateLocationHash') === 'True';
         self.submitEp = em.attr('submitEp');
         self.totalSteps = em.data('steps');
@@ -44,12 +43,18 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.isCurrentStepValidated = true;
         self.readyToSubmit = false;
         self.areas = {};
-        self.title = self.em.find('.form-title');
-        self.messages = self.em.find('.form-messages').first();
+        self.title = em.find('.form-title');
+        self.messages = em.find('.form-messages').first();
         self.widgets = {};
+        self.assets = em.data('assets').split(',');
+
+        // Load assets
+        $.each(self.assets, function(i, asset) {
+            assetman.load(asset);
+        });
 
         // Form ID can be passed via query
-        if (!self.nocache && self.updateLocationHash) {
+        if (self.updateLocationHash) {
             var h = assetman.parseLocation().hash;
             if ('__form_uid' in h) {
                 self.id = h['__form_uid'];
@@ -511,7 +516,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
                     // Increase current step
                     ++self.currentStep;
-                    if (!self.nocache && self.updateLocationHash && self.totalSteps > 1) {
+                    if (self.updateLocationHash && self.totalSteps > 1) {
                         var h = assetman.parseLocation().hash;
                         h['__form_step'] = self.currentStep;
                         window.location.hash = $.param(h);
@@ -562,7 +567,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             self.removeWidgets(self.currentStep);
             self.showWidgets(--self.currentStep);
 
-            if (!self.nocache && self.updateLocationHash && self.totalSteps > 1) {
+            if (self.updateLocationHash && self.totalSteps > 1) {
                 var h = assetman.parseLocation().hash;
                 h['__form_step'] = self.currentStep;
                 window.location.hash = $.param(h);

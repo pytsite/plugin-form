@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.2 (2018-05-14)
+
+Form assets loading moved to JS code.
+
+
 ### 4.1 (2018-05-13)
 
 - `Form.assets` property added.

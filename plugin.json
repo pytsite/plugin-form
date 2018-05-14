@@ -1,6 +1,6 @@
 {
   "name": "form",
-  "version": "4.1",
+  "version": "4.2",
   "description": {
     "en": "Form",
     "ru": "Form",
@@ -14,7 +14,7 @@
   },
   "requires": {
     "plugins": [
-      "assetman",
+      "assetman>=1.4",
       "http_api",
       "jquery",
       "jquery_scrollto",
