@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.2.1 (2018-05-14)
+
+JS code loading issue fixed.
+
+
 ### 4.2 (2018-05-14)
 
 Form assets loading moved to JS code.
