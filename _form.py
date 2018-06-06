@@ -67,6 +67,7 @@ class Form(_ABC):
         self._attrs.update({
             'created': _datetime.now(),
             'name': '',
+            'enctype': 'application/x-www-form-urlencoded',
             'method': 'post',
             'action': '',
             'data': {},
@@ -257,6 +258,18 @@ class Form(_ABC):
         """Set name
         """
         self.set_attr('name', value)
+
+    @property
+    def enctype(self) -> str:
+        """Get enctype
+        """
+        return self._attrs['enctype']
+
+    @enctype.setter
+    def enctype(self, value: str):
+        """Set enctype
+        """
+        self.set_attr('enctype', value)
 
     @property
     def method(self) -> str:

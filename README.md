@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.3 (2018-06-06)
+
+Support for `enctype` HTML attribute.
+
+
 ### 4.2.1 (2018-05-14)
 
 JS code loading issue fixed.
