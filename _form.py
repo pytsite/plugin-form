@@ -57,7 +57,6 @@ class Form(_ABC):
             uid='action_submit',
             value=_lang.t('form@save'),
             color='primary',
-            icon='fa fa-fw fa-save',
             form_area='footer',
             css='form-action-submit',
         )
@@ -144,7 +143,6 @@ class Form(_ABC):
                 value=_lang.t('form@forward'),
                 form_area='footer',
                 color='primary',
-                icon='fa fa-fw fa-forward',
                 css='form-action-forward',
                 data={
                     'to-step': self._current_step + 1,
@@ -159,7 +157,6 @@ class Form(_ABC):
                 value=_lang.t('form@backward'),
                 form_area='footer',
                 form_step=self._current_step,
-                icon='fa fa-fw fa-backward',
                 css='form-action-backward',
                 data={
                     'to-step': self._current_step - 1,

@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.3.1 (2018-06-22)
+
+Font Awesome's dependency removed.
+
+
 ### 4.3 (2018-06-06)
 
 Support for `enctype` HTML attribute.
