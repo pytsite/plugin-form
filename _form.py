@@ -11,10 +11,11 @@ from collections import OrderedDict as _OrderedDict
 from datetime import datetime as _datetime
 from pytsite import util as _util, router as _router, validation as _validation, tpl as _tpl, events as _events, \
     lang as _lang, reg as _reg, cache as _cache, http as _http
-from plugins import widget as _widget, assetman as _assetman
+from plugins import widget as _widget
 from . import _error
 
 _CACHE_TTL = _reg.get('form.cache_ttl', 604800)  # 7 days
+_F_NAME_SUB_RE = _re.compile('[^a-zA-Z0-9_]+')
 _CSS_SUB_RE = _re.compile('[^a-zA-Z0-9\-]+')
 
 
@@ -42,13 +43,13 @@ class Form(_ABC):
         # Form's class ID
         self._cid = '{}.{}'.format(self.__module__, self.__class__.__name__)
 
-        # Default form's UID
-        self._uid = 'cid:{}'.format(self._cid)
+        # Form's UID
+        self._uid = None  # type: str
 
         # Current step
         self._current_step = 1
 
-        # If the form should be cached
+        # If the form should be cached or not
         self._cache = False
 
         # Default submit button
@@ -61,9 +62,10 @@ class Form(_ABC):
             css='form-action-submit',
         )
 
-        # Attributes
-        self._attrs = kwargs.get('attrs', {})
-        self._attrs.update({
+        # Form's attributes. This dict holds all form's attributes that can be set from outside.
+        # Using dict instead of separate object's properties motivated by large amount of variables and neccessity of
+        # caching them in convenient manner
+        self._attrs = {
             'created': _datetime.now(),
             'name': '',
             'enctype': 'application/x-www-form-urlencoded',
@@ -73,8 +75,6 @@ class Form(_ABC):
             'path': _router.current_path(),
             'redirect': self._request.inp.get('__redirect', '') if self._request else '',
             'steps': 1,
-            'modal': False,
-            'modal_close_btn': True,
             'prevent_submit': False,
             'update_location_hash': False,
             'css': 'pytsite-form',
@@ -90,17 +90,19 @@ class Form(_ABC):
             'hide_title': False,
             'title_css': '',
             'assets': ['form@css/form.css', 'form@js/pytsite-form.js']
-        })
+        }
 
-        # Presence of '_uid' kwarg means that form's is being reconstructed by _api.dispense().
-        # If form's UID shows that form was cached, it must be tried to restore form's attributes from cache.
+        # Presence of '_uid' kwarg means that form's is being reconstructed by _api.dispense()
         if '_uid' in kwargs:
             self._uid = kwargs.pop('_uid')
-            self._cache = True
 
             # Restore form's attributes from cache
             if self._attrs_cache.has(self._uid):
+                self._cache = True
                 self._attrs.update(self._attrs_cache.get_hash(self._uid))
+
+            # Perform form's setup
+            self._on_setup_form()
 
         # Normal form initialization
         else:
@@ -108,14 +110,12 @@ class Form(_ABC):
             for k, v in kwargs.items():
                 self.set_attr(k, v)
 
-            # Ask form to perform setup
+            # Perform form's setup
             self._on_setup_form()
 
-            # Check if the form must be cached after execution of self._on_setup_form() hook
-            if self.steps > 1 and not self._cache:
-                self._cache = True
-                for k, v in self._attrs.items():
-                    self.set_attr(k, v)
+            # Set form's UID if it still not set
+            if not self._uid:
+                self._uid = self._build_uid()
 
             # Set default action
             if not self.action:
@@ -123,10 +123,27 @@ class Form(_ABC):
 
             # Set default name
             if not self.name:
-                self.name = self._uid
+                self.name = _F_NAME_SUB_RE.sub('_', self._uid.lower()).replace('__', '_')
 
             # Add convenient CSS classes
             self.css += ' form-cid-{}'.format(_CSS_SUB_RE.sub('-', self._cid.lower()).replace('--', '-'))
+
+    def _build_uid(self) -> str:
+        """Build form's UID
+        """
+        if self._cache:
+            while True:
+                uid = _util.random_password(64, True)
+                if not self._cids_cache.has(uid):
+                    break
+
+            # Prepare cache
+            self._cids_cache.put(uid, self._cid, _CACHE_TTL)
+            self._attrs_cache.put_hash(uid, self._attrs, _CACHE_TTL)
+
+            return uid
+        else:
+            return 'cid:{}'.format(self._cid)
 
     def setup_widgets(self):
         """Setup widgets
@@ -167,7 +184,7 @@ class Form(_ABC):
         self._on_setup_widgets()
 
         # Ask others to setup form's widgets
-        _events.fire('form@setup_widgets.' + self.name.replace('-', '_'), frm=self)
+        _events.fire('form@setup_widgets.' + self.name, frm=self)
 
         # Restore widgets' values
         if self._cache:
@@ -204,21 +221,25 @@ class Form(_ABC):
         pass
 
     def set_attr(self, k: str, v):
-        # If attribute is non-standard and form is not intended ot be cached,
-        # mark form as "cached" and update its UID
-        if k not in self._attrs and not self._cache:
-            self._cache = True
-            self._uid = _util.random_password(64, True)
-            self._cids_cache.put(self._uid, self._cid, _CACHE_TTL)
-            self._attrs_cache.put_hash(self._uid, self._attrs, _CACHE_TTL)
-
-        if k == 'css' and 'pytsite-form' not in v:
-            v += ' pytsite-form'
-
-        self._attrs[k] = v
+        # First call of this method
+        if not self._uid:
+            self._uid = self._build_uid()
 
         if self._cache:
+            self._attrs[k] = v
             self._attrs_cache.put_hash_item(self._uid, k, v)
+        else:
+            self._attrs[k] = v
+
+            # Non-standard attributes can be stored only in cache
+            if k not in self._attrs:
+                self._cache = True
+
+                # Regenerate form UID
+                self._uid = self._build_uid()
+
+                # Put existing attributes to cache
+                self._attrs_cache.put_hash(self._uid, self._attrs, _CACHE_TTL)
 
     @property
     def request(self) -> _http.Request:
@@ -331,6 +352,9 @@ class Form(_ABC):
     def css(self, value):
         """Set CSS classes
         """
+        if 'pytsite-form' not in value:
+            value += ' pytsite-form'
+
         self.set_attr('css', value)
 
     @property
@@ -439,6 +463,12 @@ class Form(_ABC):
     def steps(self, value: int):
         """Set number of form's steps
         """
+        if value < 1:
+            value = 1
+
+        if value > 1 and not self._cache:
+            self._cache = True
+
         self.set_attr('steps', value)
 
     @property
@@ -452,30 +482,6 @@ class Form(_ABC):
         """Set current step number
         """
         self._current_step = value
-
-    @property
-    def modal(self) -> bool:
-        """Check if the form is modal
-        """
-        return self._attrs['modal']
-
-    @modal.setter
-    def modal(self, value: bool):
-        """Set if the form is modal
-        """
-        self.set_attr('modal', value)
-
-    @property
-    def modal_close_btn(self) -> bool:
-        """Check if the form has modal's close button
-        """
-        return self._attrs['modal_close_btn']
-
-    @modal_close_btn.setter
-    def modal_close_btn(self, value: bool):
-        """Set if the form has modal's close button
-        """
-        self.set_attr('modal_close_btn', value)
 
     @property
     def prevent_submit(self) -> bool:

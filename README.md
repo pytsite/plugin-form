@@ -4,6 +4,13 @@
 ## Changelog
 
 
+### 4.4 (2018-07-07)
+
+- Caching issues fixed.
+- Form name generation issue fixed.
+- `Form.modal*` properties removed.
+
+
 ### 4.3.1 (2018-06-22)
 
 Font Awesome's dependency removed.
