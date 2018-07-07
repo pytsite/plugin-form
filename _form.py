@@ -229,17 +229,18 @@ class Form(_ABC):
             self._attrs[k] = v
             self._attrs_cache.put_hash_item(self._uid, k, v)
         else:
-            self._attrs[k] = v
-
             # Non-standard attributes can be stored only in cache
             if k not in self._attrs:
                 self._cache = True
+                self._attrs[k] = v
 
                 # Regenerate form UID
                 self._uid = self._build_uid()
 
                 # Put existing attributes to cache
                 self._attrs_cache.put_hash(self._uid, self._attrs, _CACHE_TTL)
+            else:
+                self._attrs[k] = v
 
     @property
     def request(self) -> _http.Request:

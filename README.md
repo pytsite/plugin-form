@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.4.2 (2018-07-07)
+
+Non-standard form attributes caching fixed.
+
+
 ### 4.4.1 (2018-07-07)
 
 Form name set from kwargs fixed.
