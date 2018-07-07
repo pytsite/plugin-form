@@ -17,7 +17,9 @@
       {% endfor %}
 >
     {#  Hidden area  #}
-    <div class="form-area form-area-hidden hidden sr-only {{ form.area_hidden_css }}" data-form-area="hidden"></div>
+    <div class="form-area form-area-hidden hidden sr-only {{ form.area_hidden_css }}" data-form-area="hidden">
+        <input type="hidden" name="__form_name" value="{{ form.name }}">
+    </div>
 
     {#  Header area  #}
     <div class="form-area form-area-header {{ form.area_header_css }}"

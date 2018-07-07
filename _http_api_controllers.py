@@ -22,6 +22,7 @@ class PostGetWidgets(_routing.Controller):
     def exec(self) -> list:
         frm = _api.dispense(self.request, self.args.pop('__form_uid'))
         frm.current_step = self.args.pop('__form_step')
+        frm.name =  self.args.pop('__form_name')
 
         return [str(w) for w in frm.setup_widgets().get_widgets()]
 
@@ -39,6 +40,7 @@ class PostValidate(_routing.Controller):
         try:
             frm = _api.dispense(self.request, self.args.pop('__form_uid'))
             frm.current_step = self.args.pop('__form_step')
+            frm.name = self.args.pop('__form_name')
             frm.setup_widgets().fill(self.args).validate()
 
             return {'status': True}
