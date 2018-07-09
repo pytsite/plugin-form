@@ -1,11 +1,11 @@
 require(['jquery', 'pytsite-form-module', 'assetman'], function ($, form, assetman) {
     $('.pytsite-form').each(function () {
         // Create form
-        var frm = new form.Form($(this));
+        const frm = new form.Form($(this));
 
         // If requested to walk to particular step automatically
-        var h = assetman.parseLocation().hash;
-        var walkToStep = '__form_step' in h ? parseInt(h['__form_step']) : 1;
+        const h = assetman.parseLocation().hash;
+        const walkToStep = '__form_step' in h ? parseInt(h['__form_step']) : 1;
         $(frm.em).on('formForward', function () {
             // When form will make its first step, move it automatically to the requested step
             if (frm.currentStep < walkToStep)

@@ -133,7 +133,7 @@ class Form(_ABC):
         """
         if self._cache:
             while True:
-                uid = _util.random_password(64, True)
+                uid = _util.random_password(8, True)
                 if not self._cids_cache.has(uid):
                     break
 

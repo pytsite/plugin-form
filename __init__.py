@@ -21,9 +21,9 @@ def plugin_load():
     cache.create_pool('form.form_values')
 
     assetman.register_package(__name__)
-    assetman.t_less(__name__)
-    assetman.t_js(__name__)
     assetman.js_module('pytsite-form-module', __name__ + '@js/pytsite-form-module')
+    assetman.t_less(__name__)
+    assetman.t_js(__name__, babelify=True)
 
 
 def plugin_install():

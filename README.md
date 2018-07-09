@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.4.3 (2018-07-09)
+
+Multiple forms widgets IDs overlapping issue fixed.
+
+
 ### 4.4.2 (2018-07-07)
 
 Non-standard form attributes caching fixed.
