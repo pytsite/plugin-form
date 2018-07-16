@@ -30,13 +30,15 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.em = em;
         self.id = em.attr('id');
         self.name = em.attr('name');
+        self.enctype = em.attr('enctype');
+        self.action = em.attr('action');
+        self.method = em.attr('method') || 'POST';
         self.location = location.origin + location.pathname;
         self.weight = parseInt(em.data('weight'));
         self.getWidgetsEp = em.data('getWidgetsEp');
         self.validationEp = em.data('validationEp');
         self.preventSubmit = em.data('preventSubmit') === 'True';
         self.updateLocationHash = em.data('updateLocationHash') === 'True';
-        self.submitEp = em.attr('submitEp');
         self.totalSteps = em.data('steps');
         self.currentStep = 0;
         self.isCurrentStepValidated = true;
@@ -48,8 +50,8 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.assets = em.data('assets').split(',');
 
         // Load assets
-        $.each(self.assets, function(i, asset) {
-            assetman.load(asset);
+        $.each(self.assets, function (i, asset) {
+            assetman.load(asset, null);
         });
 
         // Form ID can be passed via query
@@ -70,32 +72,52 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             self.areas[$(this).data('formArea')] = $(this);
         });
 
-        // Initialize progress bar
-        self.progress = self.areas['body'].find('.progress');
-        self.progressBar = self.progress.find('.progress-bar');
-
         // Form submit event handler
         self.em.submit(function (event) {
+            // Clear form's messages
+            self.clearMessages();
+
             // Form isn't ready to submit, just move one step forward.
             if (!self.readyToSubmit) {
                 event.preventDefault();
                 self.forward();
             }
+
             // Form is ready to submit
             else {
                 // Notify listeners about upcoming form submit
-                self.em.trigger('formSubmit', [self]);
+                self.em.trigger('formPreSubmit', [self]);
 
-                if (self.preventSubmit) {
-                    // Do nothing
-                    event.preventDefault();
-                }
-                else {
-                    // Remove all elements which should not be transfered to server
-                    self.em.find('[data-skip-serialization=True]').remove();
+                if (self.method === 'GET')
+                    return;
 
-                    // Disable submit button to prevent clicking it more than once while waiting for server response
-                    self.em.find('.form-action-submit button').attr('disabled', true);
+                event.preventDefault();
+
+                if (!self.preventSubmit) {
+                    const submitButton = self.em.find('[type=submit]');
+                    submitButton.attr('disabled', true);
+
+                    httpApi.post(self.action, self.serialize()).done(function (r) {
+                        self.em.trigger('formSubmit', [self, r]);
+                        if (r.hasOwnProperty('__redirect'))
+                            window.location.href = r.__redirect;
+                    }).fail(function (e) {
+                        self.em.trigger('formSubmitError', [self, e]);
+
+                        if (e.hasOwnProperty('responseJSON')) {
+                            if (e.responseJSON.hasOwnProperty('warning')) {
+                                self.addMessage(e.responseJSON.warning, 'warning');
+                                $(window).scrollTo(self.messages, 250);
+                            }
+
+                            if (e.responseJSON.hasOwnProperty('error')) {
+                                self.addMessage(e.responseJSON.error, 'danger');
+                                $(window).scrollTo(self.messages, 250);
+                            }
+                        }
+
+                        submitButton.attr('disabled', false);
+                    });
                 }
             }
         });
@@ -186,9 +208,6 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                     self.addMessage(resp.responseJSON.error, 'danger');
                 else
                     self.addMessage(resp.statusText, 'danger');
-
-                // Hide progress bar
-                self.progress.hide();
             });
         };
 
@@ -265,20 +284,18 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             self.widgets[w.uid] = w;
 
             // To prevent HTML elements IDs overlapping in case of presence more than one form on the same page
-            w.em.find('[id][id!=""]').each(function() {
+            w.em.find('[id][id!=""]').each(function () {
                 $(this).attr('id', self.name + '_' + $(this).attr('id'));
             });
-            w.em.find('label[for]').each(function() {
+            w.em.find('label[for]').each(function () {
                 $(this).attr('for', self.name + '_' + $(this).attr('for'));
             });
 
             // Append widget's element to the form's HTML tree
-            if (w.parentUid) {
+            if (w.parentUid)
                 self.getWidget(w.parentUid).appendChild(w);
-            }
-            else {
+            else
                 self.areas[w.formArea].append(w.em);
-            }
 
             return w
         };
@@ -318,13 +335,8 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.loadWidgets = function (step) {
             const deffer = $.Deferred();
 
-            // Zero and show progress bar
-            self.progressBar.css('width', '0');
-            self.progress.show();
-
             self._request('POST', self.getWidgetsEp + '/' + self.id + '/' + step).done(function (resp) {
                 const numWidgetsToInit = resp.length;
-                let progressCount = 1;
 
                 for (let i = 0; i < numWidgetsToInit; i++) {
                     // Create widget from raw HTML string
@@ -332,20 +344,12 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
                     // Set form's step of the widget
                     w.formStep = step;
-
-                    // Increase progress bar value
-                    const percents = (100 / numWidgetsToInit) * progressCount++;
-                    self.progressBar.width(percents + '%');
-                    self.progressBar.attr('aria-valuenow', percents);
                 }
 
-                if (self.countWidgets(step) === numWidgetsToInit) {
-                    self.progress.hide();
+                if (self.countWidgets(step) === numWidgetsToInit)
                     deffer.resolve();
-                }
-                else {
+                else
                     throw 'Something went wrong';
-                }
             });
 
             return deffer;
@@ -430,12 +434,12 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                             }
                         }
 
-                        const scrollObject = $(window);
+
                         let scrollToTarget = self.em.find('.has-error').first();
                         if (!scrollToTarget.length)
                             scrollToTarget = self.messages;
 
-                        scrollObject.scrollTo(scrollToTarget, 250);
+                        $(window).scrollTo(scrollToTarget, 250);
                         deffer.reject();
                     }
                 }).fail(function () {
@@ -502,7 +506,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          */
         self.forward = function () {
             const deffer = $.Deferred();
-            const submitButton = self.em.find('.form-action-submit button');
+            const submitButton = self.em.find('[type=submit]');
 
             // Disable user activity while widgets are loading
             submitButton.attr('disabled', true);

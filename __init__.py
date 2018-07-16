@@ -33,15 +33,14 @@ def plugin_install():
 
 
 def plugin_load_wsgi():
-    from pytsite import router
     from plugins import http_api, assetman
-    from . import _controllers, _http_api_controllers
-
-    router.handle(_controllers.Submit, '/form/submit/<__form_uid>', 'form@submit', methods='POST')
+    from . import _http_api_controllers
 
     http_api.handle('POST', 'form/widgets/<__form_uid>/<__form_step>', _http_api_controllers.PostGetWidgets,
                     'form@post_get_widgets')
     http_api.handle('POST', 'form/validate/<__form_uid>/<__form_step>', _http_api_controllers.PostValidate,
                     'form@post_validate')
+    http_api.handle('POST', 'form/submit/<__form_uid>', _http_api_controllers.PostSubmit,
+                    'form@post_submit')
 
     assetman.preload(__name__ + '@js/pytsite-form.js', True)

@@ -11,7 +11,7 @@ from collections import OrderedDict as _OrderedDict
 from datetime import datetime as _datetime
 from pytsite import util as _util, router as _router, validation as _validation, tpl as _tpl, events as _events, \
     lang as _lang, reg as _reg, cache as _cache, http as _http
-from plugins import widget as _widget
+from plugins import widget as _widget, http_api as _http_api
 from . import _error
 
 _CACHE_TTL = _reg.get('form.cache_ttl', 604800)  # 7 days
@@ -119,7 +119,7 @@ class Form(_ABC):
 
             # Set default action
             if not self.action:
-                self.action = _router.rule_url('form@submit', {'__form_uid': self._uid})
+                self.action = _http_api.url('form@post_submit', {'__form_uid': self._uid})
 
             # Set default name
             if not self.name:

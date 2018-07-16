@@ -4,6 +4,12 @@
 ## Changelog
 
 
+### 4.5 (2018-07-16)
+
+- Default form submit handler moved to HTTP API.
+- Form's widgets loading progress bar removed.
+
+
 ### 4.4.3 (2018-07-09)
 
 Multiple forms widgets IDs overlapping issue fixed.
