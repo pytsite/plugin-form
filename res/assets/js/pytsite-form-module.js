@@ -37,7 +37,6 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         self.weight = parseInt(em.data('weight'));
         self.getWidgetsEp = em.data('getWidgetsEp');
         self.validationEp = em.data('validationEp');
-        self.preventSubmit = em.data('preventSubmit') === 'True';
         self.updateLocationHash = em.data('updateLocationHash') === 'True';
         self.totalSteps = em.data('steps');
         self.currentStep = 0;
@@ -74,51 +73,52 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
         // Form submit event handler
         self.em.submit(function (event) {
+            event.preventDefault();
+
             // Clear form's messages
             self.clearMessages();
 
             // Form isn't ready to submit, just move one step forward.
             if (!self.readyToSubmit) {
-                event.preventDefault();
                 self.forward();
             }
-
             // Form is ready to submit
             else {
                 // Notify listeners about upcoming form submit
                 self.em.trigger('formPreSubmit', [self]);
 
-                if (self.method === 'GET')
-                    return;
+                const submitButton = self.em.find('[type=submit]');
+                submitButton.attr('disabled', true);
 
-                event.preventDefault();
+                httpApi.post(self.action, self.serialize()).done(function (r) {
+                    self.em.trigger('formSubmit', [self, r]);
 
-                if (!self.preventSubmit) {
-                    const submitButton = self.em.find('[type=submit]');
-                    submitButton.attr('disabled', true);
+                    if (r.hasOwnProperty('__alert'))
+                        window.alert(r.__alert);
 
-                    httpApi.post(self.action, self.serialize()).done(function (r) {
-                        self.em.trigger('formSubmit', [self, r]);
-                        if (r.hasOwnProperty('__redirect'))
-                            window.location.href = r.__redirect;
-                    }).fail(function (e) {
-                        self.em.trigger('formSubmitError', [self, e]);
+                    if (r.hasOwnProperty('__reset') && r.__reset)
+                        self.reset();
 
-                        if (e.hasOwnProperty('responseJSON')) {
-                            if (e.responseJSON.hasOwnProperty('warning')) {
-                                self.addMessage(e.responseJSON.warning, 'warning');
-                                $(window).scrollTo(self.messages, 250);
-                            }
+                    if (r.hasOwnProperty('__redirect'))
+                        window.location.href = r.__redirect;
+                }).fail(function (e) {
+                    self.em.trigger('formSubmitError', [self, e]);
 
-                            if (e.responseJSON.hasOwnProperty('error')) {
-                                self.addMessage(e.responseJSON.error, 'danger');
-                                $(window).scrollTo(self.messages, 250);
-                            }
+                    if (e.hasOwnProperty('responseJSON')) {
+                        if (e.responseJSON.hasOwnProperty('warning')) {
+                            self.addMessage(e.responseJSON.warning, 'warning');
+                            $(window).scrollTo(self.messages, 250);
                         }
 
-                        submitButton.attr('disabled', false);
-                    });
-                }
+                        if (e.responseJSON.hasOwnProperty('error')) {
+                            self.addMessage(e.responseJSON.error, 'danger');
+                            $(window).scrollTo(self.messages, 250);
+                        }
+                    }
+
+                    submitButton.attr('disabled', false);
+                });
+
             }
         });
 

@@ -9,7 +9,6 @@
       data-get-widgets-ep="{{ form.get_widgets_ep }}"
       data-validation-ep="{{ form.validation_ep }}"
       data-steps="{{ form.steps }}"
-      data-prevent-submit="{{ form.prevent_submit }}"
       data-update-location-hash="{{ form.update_location_hash }}"
       data-assets="{{ ','.join(form.assets) }}"
       {% for k, v in form.data.items() %}
@@ -22,14 +21,11 @@
     </div>
 
     {#  Header area  #}
-    <div class="form-area form-area-header {{ form.area_header_css }}"
-         data-form-area="header">
+    <div class="form-area form-area-header {{ form.area_header_css }}" data-form-area="header">
 
         {% if form.title and not form.hide_title %}
             <div class="form-title">
-                <h4 id="{{ form.uid }}-label" class="{{ form.title_css }}">
-                    {{ form.title | e }}
-                </h4>
+                <h4 id="{{ form.uid }}-label" class="{{ form.title_css }}">{{ form.title | e }}</h4>
             </div>
         {% endif %}
 

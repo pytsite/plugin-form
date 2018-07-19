@@ -75,7 +75,6 @@ class Form(_ABC):
             'path': _router.current_path(),
             'redirect': self._request.inp.get('__redirect', '') if self._request else '',
             'steps': 1,
-            'prevent_submit': False,
             'update_location_hash': False,
             'css': 'pytsite-form',
             'area_hidden_css': '',
@@ -483,18 +482,6 @@ class Form(_ABC):
         """Set current step number
         """
         self._current_step = value
-
-    @property
-    def prevent_submit(self) -> bool:
-        """Check if the form should prevent submitting by pressing the 'Submit' button
-        """
-        return self._attrs['prevent_submit']
-
-    @prevent_submit.setter
-    def prevent_submit(self, value: bool):
-        """Set if the form should prevent submitting by pressing the 'Submit' button
-        """
-        self.set_attr('prevent_submit', value)
 
     @property
     def redirect(self) -> str:

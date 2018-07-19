@@ -4,6 +4,12 @@
 ## Changelog
 
 
+### 4.6 (2018-07-19)
+
+- `Form.prevent_submit` property removed.
+- Support for `__reset` and `__alert` properties in submit response.
+
+
 ### 4.5 (2018-07-16)
 
 - Default form submit handler moved to HTTP API.
