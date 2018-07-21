@@ -88,7 +88,7 @@ class Form(_ABC):
             'title': '',
             'hide_title': False,
             'title_css': '',
-            'assets': ['form@css/form.css', 'form@js/pytsite-form.js']
+            'assets': ['form@js/pytsite-form.js']
         }
 
         # Presence of '_uid' kwarg means that form's is being reconstructed by _api.dispense()
