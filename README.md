@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.6.1 (2018-07-21)
+
+Support of Twitter Bootstrap 4 fixed.
+
+
 ### 4.6 (2018-07-19)
 
 - `Form.prevent_submit` property removed.
