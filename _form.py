@@ -60,6 +60,7 @@ class Form(_ABC):
             color='primary',
             form_area='footer',
             css='form-action-submit',
+            icon='fa fas fa-fw fa-save',
         )
 
         # Form's attributes. This dict holds all form's attributes that can be set from outside.
@@ -160,6 +161,7 @@ class Form(_ABC):
                 form_area='footer',
                 color='primary',
                 css='form-action-forward',
+                icon='fa fas fa-fw fa-forward',
                 data={
                     'to-step': self._current_step + 1,
                 }
@@ -174,6 +176,7 @@ class Form(_ABC):
                 form_area='footer',
                 form_step=self._current_step,
                 css='form-action-backward',
+                icon='fa fas fa-fw fa-backward',
                 data={
                     'to-step': self._current_step - 1,
                 }
