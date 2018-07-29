@@ -9,8 +9,9 @@ from typing import List as _List, Optional as _Optional, Mapping as _Mapping
 from abc import ABC as _ABC, abstractmethod as _abstractmethod
 from collections import OrderedDict as _OrderedDict
 from datetime import datetime as _datetime
+from math import ceil as _ceil
 from pytsite import util as _util, router as _router, validation as _validation, tpl as _tpl, events as _events, \
-    lang as _lang, reg as _reg, cache as _cache, http as _http
+    lang as _lang, reg as _reg, cache as _cache, http as _http, routing as _routing
 from plugins import widget as _widget, http_api as _http_api
 from . import _error
 
@@ -40,6 +41,9 @@ class Form(_ABC):
         # Form's areas where widgets can be placed
         self._areas = ('hidden', 'header', 'body', 'footer')
 
+        # Last widget's weight
+        self._last_widget_weight = {k: 0 for k in self._areas}
+
         # Form's class ID
         self._cid = '{}.{}'.format(self.__module__, self.__class__.__name__)
 
@@ -54,7 +58,7 @@ class Form(_ABC):
 
         # Default submit button
         self._submit_button = _widget.button.Submit(
-            weight=20,
+            weight=200,
             uid='action_submit',
             value=_lang.t('form@save'),
             color='primary',
@@ -119,7 +123,10 @@ class Form(_ABC):
 
             # Set default action
             if not self.action:
-                self.action = _http_api.url('form@post_submit', {'__form_uid': self._uid})
+                try:
+                    self.action = _http_api.url('form@post_submit', {'__form_uid': self._uid})
+                except _routing.error.RuleNotFound:
+                    pass
 
             # Set default name
             if not self.name:
@@ -155,7 +162,7 @@ class Form(_ABC):
         # 'Next' button for all steps except the last one
         if self._current_step < self.steps:
             self.add_widget(_widget.button.Submit(
-                weight=20,
+                weight=200,
                 uid='action_forward_' + str(self._current_step + 1),
                 value=_lang.t('form@forward'),
                 form_area='footer',
@@ -170,7 +177,7 @@ class Form(_ABC):
         # 'Back' button for all steps except the first one
         if self._current_step > 1:
             self.add_widget(_widget.button.Button(
-                weight=10,
+                weight=100,
                 uid='action_backward_' + str(self._current_step - 1),
                 value=_lang.t('form@backward'),
                 form_area='footer',
@@ -681,10 +688,13 @@ class Form(_ABC):
         """Add a widget
         """
         if widget.form_area not in self._areas:
-            raise ValueError("Invalid form area: '{}'".format(widget.form_area))
+            raise ValueError("Invalid form area: {}".format(widget.form_area))
 
-        if widget.uid in self._widgets:
-            raise KeyError("Widget '{}' is already added".format(widget.uid))
+        if not widget.weight:
+            self._last_widget_weight[widget.form_area] += 100
+            widget.weight = self._last_widget_weight[widget.form_area]
+        elif widget.weight > self._last_widget_weight[widget.form_area]:
+            self._last_widget_weight[widget.form_area] = _ceil(widget.weight / 100) * 100
 
         self._widgets.append(widget)
         self._widgets.sort(key=lambda x: x.weight)
@@ -715,7 +725,7 @@ class Form(_ABC):
     def get_widgets(self, step: int = 1, filter_by: str = None, filter_val=None, _parent: _widget.Abstract = None):
         """Get flat list of widgets
 
-        :rtype: _List[_widget.Abstract]
+        :return: _List[_widget.Abstract]
         """
         r = []
 
@@ -725,9 +735,8 @@ class Form(_ABC):
             if not filter_by or (filter_by and getattr(_parent, filter_by) == filter_val):
                 r.append(_parent)
 
-            if isinstance(_parent, _widget.Container):
-                for widget in _parent.children:
-                    r += self.get_widgets(step, filter_by, filter_val, widget)
+            for widget in _parent.children:
+                r += self.get_widgets(step, filter_by, filter_val, widget)
 
         # Recursion depth == 0
         else:
@@ -754,8 +763,7 @@ class Form(_ABC):
         """Check if the form has widget
         """
         try:
-            self.get_widget(uid)
-            return True
+            return bool(self.get_widget(uid))
         except _error.WidgetNotExistError:
             return False
 
@@ -765,10 +773,7 @@ class Form(_ABC):
         w = self.get_widget(uid)
         w.clr_rules()
 
-        if w.parent:
-            w.parent.remove_child(uid)
-        else:
-            self._widgets = [w for w in self._widgets if w.uid != uid]
+        self._widgets = [w for w in self._widgets if w.uid != uid]
 
         return self
 
@@ -778,3 +783,32 @@ class Form(_ABC):
         self._widgets = []
 
         return self
+
+    @classmethod
+    def get_package_name(cls) -> str:
+        """Get instance's package name.
+        """
+        return '.'.join(cls.__module__.split('.')[:-1])
+
+    @classmethod
+    def resolve_msg_id(cls, partly_msg_id: str) -> str:
+        # Searching for translation up in hierarchy
+        for super_cls in cls.__mro__:
+            if issubclass(super_cls, Form):
+                full_msg_id = super_cls.get_package_name() + '@' + partly_msg_id
+                if _lang.is_translation_defined(full_msg_id):
+                    return full_msg_id
+
+        return cls.get_package_name() + '@' + partly_msg_id
+
+    @classmethod
+    def t(cls, partial_msg_id: str, args: dict = None) -> str:
+        """Translate a string in model context
+        """
+        return _lang.t(cls.resolve_msg_id(partial_msg_id), args)
+
+    @classmethod
+    def t_plural(cls, partial_msg_id: str, num: int = 2) -> str:
+        """Translate a string into plural form.
+        """
+        return _lang.t_plural(cls.resolve_msg_id(partial_msg_id), num)

@@ -5,7 +5,21 @@ __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
 from pytsite import routing as _routing, formatters as _formatters, http as _http
-from . import _error, _api
+from . import _error, _api, _form
+
+
+def _setup_form_widgets(frm: _form.Form, step: int):
+    frm.current_step = step
+    frm.setup_widgets()
+
+    # Check for duplicates
+    uids = []
+    for w in frm.get_widgets():
+        if w.uid in uids:
+            raise RuntimeError("Widget '{}' is duplicated on form '{}'".format(w.uid, frm.name))
+        uids.append(w.uid)
+
+    return frm
 
 
 class PostGetWidgets(_routing.Controller):
@@ -21,10 +35,9 @@ class PostGetWidgets(_routing.Controller):
 
     def exec(self) -> list:
         frm = _api.dispense(self.request, self.args.pop('__form_uid'))
-        frm.current_step = self.args.pop('__form_step')
         frm.name = self.args.pop('__form_name')
 
-        return [str(w) for w in frm.setup_widgets().get_widgets()]
+        return [str(w) for w in _setup_form_widgets(frm, self.args.pop('__form_step')).get_widgets()]
 
 
 class PostValidate(_routing.Controller):
@@ -39,9 +52,8 @@ class PostValidate(_routing.Controller):
     def exec(self) -> dict:
         try:
             frm = _api.dispense(self.request, self.args.pop('__form_uid'))
-            frm.current_step = self.args.pop('__form_step')
             frm.name = self.args.pop('__form_name')
-            frm.setup_widgets().fill(self.args).validate()
+            _setup_form_widgets(frm, self.args.pop('__form_step')).fill(self.args).validate()
 
             return {'status': True}
 
@@ -55,8 +67,7 @@ class PostSubmit(_routing.Controller):
 
         # Setup widgets for all steps
         for step in range(1, frm.steps + 1):
-            frm.current_step = step
-            frm.setup_widgets()
+            _setup_form_widgets(frm, step)
 
         # Fill, validate and submit
         r = frm.fill(self.args).validate().submit()

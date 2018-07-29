@@ -4,6 +4,12 @@
 ## Changelog
 
 
+### 4.7 (2018-07-29)
+
+- Support of `widget-2.4`.
+- New methods in `Form`: `t()` and `t_plural()`.
+
+
 ### 4.6.3 (2018-07-22)
 
 Icons fix.

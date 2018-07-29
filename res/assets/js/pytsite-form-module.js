@@ -285,7 +285,17 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
             // To prevent HTML elements IDs overlapping in case of presence more than one form on the same page
             w.em.find('[id][id!=""]').each(function () {
-                $(this).attr('id', self.name + '_' + $(this).attr('id'));
+                const id = $(this).attr('id');
+
+                $(this).attr('id', self.name + '_' + id);
+
+                // Update links to elements
+                w.em.find('[href="#' + id + '"]').each(function () {
+                    $(this).attr('href', '#' + self.name + '_' + id);
+                });
+                $('[href="#' + id + '"]').each(function () {
+                    $(this).attr('href', '#' + self.name + '_' + id);
+                });
             });
             w.em.find('label[for]').each(function () {
                 $(this).attr('for', self.name + '_' + $(this).attr('for'));
@@ -336,9 +346,9 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             const deffer = $.Deferred();
 
             self._request('POST', self.getWidgetsEp + '/' + self.id + '/' + step).done(function (resp) {
-                const numWidgetsToInit = resp.length;
+                const widgetsToLoadCnt = resp.length;
 
-                for (let i = 0; i < numWidgetsToInit; i++) {
+                for (let i = 0; i < widgetsToLoadCnt; i++) {
                     // Create widget from raw HTML string
                     let w = self.addWidget(resp[i]);
 
@@ -346,10 +356,11 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                     w.formStep = step;
                 }
 
-                if (self.countWidgets(step) === numWidgetsToInit)
+                const loadedWidgetsCnt = self.countWidgets(step);
+                if (loadedWidgetsCnt === widgetsToLoadCnt)
                     deffer.resolve();
                 else
-                    throw 'Something went wrong';
+                    throw 'Expected widgets to load: ' + widgetsToLoadCnt + ', loaded:' + loadedWidgetsCnt;
             });
 
             return deffer;
