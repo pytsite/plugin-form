@@ -661,9 +661,6 @@ class Form(_ABC):
         # Notify form instance
         r = self._on_submit()
 
-        if not r and (self.redirect or self._request):
-            r = _http.RedirectResponse(self.redirect or self._request.referrer)
-
         # Clear cache
         if self._cache:
             self._attrs_cache.rm(self._uid)

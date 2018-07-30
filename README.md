@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.8 (2018-07-30)
+
+Forms redirection refactored.
+
+
 ### 4.7 (2018-07-29)
 
 - Support of `widget-2.4`.

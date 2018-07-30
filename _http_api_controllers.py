@@ -72,4 +72,7 @@ class PostSubmit(_routing.Controller):
         # Fill, validate and submit
         r = frm.fill(self.args).validate().submit()
 
-        return {'__redirect': r.location} if isinstance(r, _http.RedirectResponse) else r
+        if r is None and not frm.redirect:
+            frm.redirect = self.request.referrer
+
+        return {'__redirect': frm.redirect} if frm.redirect else r
