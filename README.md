@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.9 (2018-07-30)
+
+Form setup event added.
+
+
 ### 4.8 (2018-07-30)
 
 Forms redirection refactored.

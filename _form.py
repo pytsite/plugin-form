@@ -108,6 +108,9 @@ class Form(_ABC):
             # Perform form's setup
             self._on_setup_form()
 
+            # Form setup event
+            _events.fire('form@setup_form.' + self.name, frm=self)
+
         # Normal form initialization
         else:
             # Set attributes from kwargs
@@ -116,6 +119,9 @@ class Form(_ABC):
 
             # Perform form's setup
             self._on_setup_form()
+
+            # Form setup event
+            _events.fire('form@setup_form.' + self.name, frm=self)
 
             # Set form's UID if it still not set
             if not self._uid:
@@ -672,7 +678,7 @@ class Form(_ABC):
     def render(self) -> str:
         """Render the form
         """
-        _events.fire('form@render.' + self.name.replace('-', '_'), frm=self)
+        _events.fire('form@render.' + self.name, frm=self)
 
         return _tpl.render(self.tpl, {'form': self})
 
