@@ -4,6 +4,12 @@
 ## Changelog
 
 
+### 4.10 (2018-07-30)
+
+New API functions: `on_setup_form()`, `on_setup_widgets()`,
+`on_render()`.
+
+
 ### 4.9 (2018-07-30)
 
 Form setup event added.

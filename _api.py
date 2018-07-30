@@ -4,7 +4,8 @@ __author__ = 'Alexander Shepetko'
 __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
-from pytsite import util as _util, cache as _cache, logger as _logger, http as _http
+from typing import Callable as _Callable
+from pytsite import util as _util, cache as _cache, logger as _logger, http as _http, events as _events
 from . import _form
 
 
@@ -30,3 +31,21 @@ def dispense(request: _http.Request, uid: str) -> _form.Form:
     except Exception as e:
         _logger.error(e)
         raise RuntimeError('Unexpected form exception')
+
+
+def on_setup_form(form_name: str, handler: _Callable[[_form.Form], None], priority: int = 0):
+    """Shortcut
+    """
+    _events.listen('form@setup_form.' + form_name, handler, priority)
+
+
+def on_setup_widgets(form_name: str, handler: _Callable[[_form.Form], None], priority: int = 0):
+    """Shortcut
+    """
+    _events.listen('form@setup_widgets.' + form_name, handler, priority)
+
+
+def on_render(form_name: str, handler: _Callable[[_form.Form], None], priority: int = 0):
+    """Shortcut
+    """
+    _events.listen('form@render.' + form_name, handler, priority)

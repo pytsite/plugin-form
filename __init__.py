@@ -5,6 +5,7 @@ __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
 # Public API
+from ._api import on_setup_form, on_setup_widgets, on_render
 from ._form import Form
 from ._error import FormValidationError, WidgetNotExistError
 
