@@ -25,102 +25,104 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             throw "Form '" + id + "' is not found";
     }
 
-    function Form(em) {
-        let self = this;
-        self.em = em;
-        self.id = em.attr('id');
-        self.name = em.attr('name');
-        self.enctype = em.attr('enctype');
-        self.action = em.attr('action');
-        self.method = em.attr('method') || 'POST';
-        self.location = location.origin + location.pathname;
-        self.weight = parseInt(em.data('weight'));
-        self.getWidgetsEp = em.data('getWidgetsEp');
-        self.validationEp = em.data('validationEp');
-        self.updateLocationHash = em.data('updateLocationHash') === 'True';
-        self.totalSteps = em.data('steps');
-        self.currentStep = 0;
-        self.isCurrentStepValidated = true;
-        self.readyToSubmit = false;
-        self.areas = {};
-        self.title = em.find('.form-title');
-        self.messages = em.find('.form-messages').first();
-        self.widgets = {};
-        self.assets = em.data('assets').split(',');
+    class Form {
+        constructor(em) {
+            this.em = em;
+            this.uid = em.attr('id');
+            this.name = em.attr('name');
+            this.enctype = em.attr('enctype');
+            this.action = em.attr('action');
+            this.method = em.attr('method') || 'POST';
+            this.location = location.origin + location.pathname;
+            this.weight = parseInt(em.data('weight'));
+            this.getWidgetsEp = em.data('getWidgetsEp');
+            this.validationEp = em.data('validationEp');
+            this.updateLocationHash = em.data('updateLocationHash') === 'True';
+            this.totalSteps = em.data('steps');
+            this.currentStep = 0;
+            this.isCurrentStepValidated = true;
+            this.readyToSubmit = false;
+            this.areas = {};
+            this.title = em.find('.form-title');
+            this.messages = em.find('.form-messages').first();
+            this.widgets = {};
+            this.assets = em.data('assets').split(',');
 
-        // Load assets
-        $.each(self.assets, function (i, asset) {
-            assetman.load(asset, null);
-        });
+            // Load assets
+            $.each(this.assets, function (i, asset) {
+                assetman.load(asset, null);
+            });
 
-        // Form ID can be passed via query
-        if (self.updateLocationHash) {
-            const h = assetman.parseLocation().hash;
-            if ('__form_uid' in h) {
-                self.id = h['__form_uid'];
-                em.attr('id', self.id);
+            // Form ID can be passed via query
+            if (this.updateLocationHash) {
+                const h = assetman.parseLocation().hash;
+                if ('__form_uid' in h) {
+                    this.uid = h['__form_uid'];
+                    em.attr('id', this.uid);
+                }
+                else {
+                    h['__form_uid'] = this.uid;
+                    window.location.hash = $.param(h);
+                }
             }
-            else {
-                h['__form_uid'] = self.id;
-                window.location.hash = $.param(h);
-            }
+
+            const self = this;
+
+            // Initialize areas
+            em.find('.form-area').each(function () {
+                self.areas[$(this).data('formArea')] = $(this);
+            });
+
+            // Form submit event handler
+            this.em.submit(function (event) {
+                event.preventDefault();
+
+                // Clear form's messages
+                self.clearMessages();
+
+                // Form isn't ready to submit, just move one step forward.
+                if (!self.readyToSubmit) {
+                    self.forward();
+                }
+                // Form is ready to submit
+                else {
+                    // Notify listeners about upcoming form submit
+                    self.em.trigger('formPreSubmit', [self]);
+
+                    const submitButton = self.em.find('[type=submit]');
+                    submitButton.attr('disabled', true);
+
+                    httpApi.post(self.action, self.serialize()).done(function (r) {
+                        self.em.trigger('formSubmit', [self, r]);
+
+                        if (r.hasOwnProperty('__alert'))
+                            window.alert(r.__alert);
+
+                        if (r.hasOwnProperty('__reset') && r.__reset)
+                            self.reset();
+
+                        if (r.hasOwnProperty('__redirect'))
+                            window.location.href = r.__redirect;
+                    }).fail(function (e) {
+                        self.em.trigger('formSubmitError', [self, e]);
+
+                        if (e.hasOwnProperty('responseJSON')) {
+                            if (e.responseJSON.hasOwnProperty('warning')) {
+                                self.addMessage(e.responseJSON.warning, 'warning');
+                                $(window).scrollTo(self.messages, 250);
+                            }
+
+                            if (e.responseJSON.hasOwnProperty('error')) {
+                                self.addMessage(e.responseJSON.error, 'danger');
+                                $(window).scrollTo(self.messages, 250);
+                            }
+                        }
+
+                        submitButton.attr('disabled', false);
+                    });
+                }
+            });
         }
-
-        // Initialize areas
-        em.find('.form-area').each(function () {
-            self.areas[$(this).data('formArea')] = $(this);
-        });
-
-        // Form submit event handler
-        self.em.submit(function (event) {
-            event.preventDefault();
-
-            // Clear form's messages
-            self.clearMessages();
-
-            // Form isn't ready to submit, just move one step forward.
-            if (!self.readyToSubmit) {
-                self.forward();
-            }
-            // Form is ready to submit
-            else {
-                // Notify listeners about upcoming form submit
-                self.em.trigger('formPreSubmit', [self]);
-
-                const submitButton = self.em.find('[type=submit]');
-                submitButton.attr('disabled', true);
-
-                httpApi.post(self.action, self.serialize()).done(function (r) {
-                    self.em.trigger('formSubmit', [self, r]);
-
-                    if (r.hasOwnProperty('__alert'))
-                        window.alert(r.__alert);
-
-                    if (r.hasOwnProperty('__reset') && r.__reset)
-                        self.reset();
-
-                    if (r.hasOwnProperty('__redirect'))
-                        window.location.href = r.__redirect;
-                }).fail(function (e) {
-                    self.em.trigger('formSubmitError', [self, e]);
-
-                    if (e.hasOwnProperty('responseJSON')) {
-                        if (e.responseJSON.hasOwnProperty('warning')) {
-                            self.addMessage(e.responseJSON.warning, 'warning');
-                            $(window).scrollTo(self.messages, 250);
-                        }
-
-                        if (e.responseJSON.hasOwnProperty('error')) {
-                            self.addMessage(e.responseJSON.error, 'danger');
-                            $(window).scrollTo(self.messages, 250);
-                        }
-                    }
-
-                    submitButton.attr('disabled', false);
-                });
-
-            }
-        });
 
         /**
          * Serialize form
@@ -128,7 +130,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @param {bool} skipTags
          * @returns {Object}
          */
-        self.serialize = function (skipTags) {
+        serialize(skipTags) {
             function getEmValue(em) {
                 if (em.tagName === 'INPUT' && em.type === 'checkbox')
                     return em.checked ? em.value : null;
@@ -139,7 +141,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             let r = {};
 
             // Process every element which has 'name'
-            self.em.find('[name]').each(function () {
+            this.em.find('[name]').each(function () {
                 const emVal = getEmValue(this);
 
                 if (emVal === null)
@@ -192,13 +194,14 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         /**
          * Do an AJAX request
          *
-         * @param {String} method
-         * @param {String} ep
+         * @param {string} method
+         * @param {string} ep
          * @returns {Promise}
          * @private
          */
-        self._request = function (method, ep) {
-            const data = self.serialize();
+        _request(method, ep) {
+            const data = this.serialize();
+            const self = this;
 
             // Merge data from location query
             $.extend(data, assetman.parseLocation(true).query);
@@ -214,14 +217,14 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         /**
          * Count form's widgets for the step
          *
-         * @param {Number} step
-         * @returns {Number}
+         * @param {number} step
+         * @returns {number}
          */
-        self.countWidgets = function (step) {
+        countWidgets(step) {
             let r = 0;
 
-            for (const uid in self.widgets) {
-                if (self.widgets.hasOwnProperty(uid) && self.widgets[uid].formStep === step)
+            for (const uid in this.widgets) {
+                if (this.widgets.hasOwnProperty(uid) && this.widgets[uid].formStep === step)
                     ++r;
             }
 
@@ -231,81 +234,70 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         /**
          * Set form's title
          *
-         * @param {String} title
+         * @param {string} title
          */
-        self.setTitle = function (title) {
-            self.title.html('<h4>' + title + '</h4>');
+        setTitle(title) {
+            this.title.html('<h4>' + title + '</h4>');
         };
 
         /**
          * Clear form's messages
          */
-        self.clearMessages = function () {
-            self.messages.html('');
+        clearMessages() {
+            this.messages.html('');
         };
 
         /**
          * Add a message to the form
          *
-         * @param {String} msg
-         * @param {String} type
+         * @param {string} msg
+         * @param {string} type
          */
-        self.addMessage = function (msg, type) {
+        addMessage(msg, type) {
             if (!type)
                 type = 'info';
 
             msg = escapeHtml(msg);
 
-            self.messages.append('<div class="alert alert-' + type + '" role="alert">' + msg + '</div>')
+            this.messages.append('<div class="alert alert-' + type + '" role="alert">' + msg + '</div>')
         };
 
         /**
          * Create and place a widget on the form
          *
-         * @param {String} html
+         * @param {string} html
          * @returns {widget.Widget}
          */
-        self.addWidget = function (html) {
+        addWidget(html) {
             // Create widget object
             const w = new widget.Widget(html);
+
+            // Make widget's UID unique
+            w.uid = `${this.uid}_${w.uid}`;
+
+            // Update widget's parent UID unique
+            if (w.parentUid)
+                w.parentUid = `${this.uid}_${w.parentUid}`;
 
             // Initially widget is hidden
             w.hide();
 
             // Widget replaces another one with different UID
             if (w.replaces === w.uid)
-                self.removeWidget(w.uid);
+                this.removeWidget(w.uid);
 
             // Widget replaces another one with same UID
-            if (w.uid in self.widgets)
-                self.removeWidget(w.uid);
+            if (w.uid in this.widgets)
+                this.removeWidget(w.uid);
 
             // Append widget to the list of loaded widgets
-            self.widgets[w.uid] = w;
-
-            // To prevent HTML elements IDs overlapping in case of presence more than one form on the same page
-            w.em.find('[id][id!=""]').each(function () {
-                const id = $(this).attr('id');
-
-                $(this).attr('id', self.name + '_' + id);
-
-                // Update links to elements
-                w.em.find('[href="#' + id + '"]').each(function () {
-                    $(this).attr('href', '#' + self.name + '_' + id);
-                });
-                $('[href="#' + id + '"]').each(function () {
-                    $(this).attr('href', '#' + self.name + '_' + id);
-                });
-            });
-            w.em.find('label[for]').each(function () {
-                $(this).attr('for', self.name + '_' + $(this).attr('for'));
-            });
+            this.widgets[w.uid] = w;
 
             // Append widget's element to the form's HTML tree
             if (w.parentUid)
-                self.getWidget(w.parentUid).appendChild(w);
+                this.getWidget(w.parentUid).appendChild(w);
             else
-                self.areas[w.formArea].append(w.em);
+                this.areas[w.formArea].append(w.em);
 
             return w
         };
@@ -313,27 +305,27 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         /**
          * Get a widget of the form
          *
-         * @param {String} uid
+         * @param {string} uid
          * @returns {widget.Widget}
          */
-        self.getWidget = function (uid) {
-            if (!(uid in self.widgets))
+        getWidget(uid) {
+            if (!(uid in this.widgets))
                 throw "Widget '" + uid + "' does not exist";
 
-            return self.widgets[uid];
+            return this.widgets[uid];
         };
 
         /**
          * Remove a widget from the form
          *
-         * @param {String} uid
+         * @param {string} uid
          */
-        self.removeWidget = function (uid) {
-            if (!(uid in self.widgets))
+        removeWidget(uid) {
+            if (!(uid in this.widgets))
                 return;
 
-            self.widgets[uid].em.remove();
-            delete self.widgets[uid];
+            this.widgets[uid].em.remove();
+            delete this.widgets[uid];
         };
 
         /**
@@ -342,10 +334,11 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @param {Number} step
          * @returns {Promise}
          */
-        self.loadWidgets = function (step) {
+        loadWidgets(step) {
+            const self = this;
             const deffer = $.Deferred();
 
-            self._request('POST', self.getWidgetsEp + '/' + self.id + '/' + step).done(function (resp) {
+            this._request('POST', this.getWidgetsEp + '/' + this.uid + '/' + step).done(function (resp) {
                 const widgetsToLoadCnt = resp.length;
 
                 for (let i = 0; i < widgetsToLoadCnt; i++) {
@@ -372,13 +365,13 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @param {Object} data
          * @returns {Form}
          */
-        self.fill = function (data) {
+        fill(data) {
             for (const k in data) {
                 if (data.hasOwnProperty(k))
-                    self.em.find('[name="' + k + '"]').val(data[k]);
+                    this.em.find('[name="' + k + '"]').val(data[k]);
             }
 
-            return self;
+            return this;
         };
 
         /**
@@ -386,7 +379,8 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          *
          * @returns {Promise}
          */
-        self.validate = function () {
+        validate() {
+            const self = this;
             const deffer = $.Deferred();
 
             // Mark current step as validated when validation will finish
@@ -394,16 +388,16 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                 self.isCurrentStepValidated = true;
             });
 
-            if (self.currentStep > 0) {
+            if (this.currentStep > 0) {
                 // Clear form's messages
-                self.clearMessages();
+                selthisf.clearMessages();
 
                 // Reset widgets state
-                for (const uid in self.widgets)
-                    self.widgets[uid].clearState().clearMessages();
+                for (const uid in sethislf.widgets)
+                    selthisf.widgets[uid].clearState().clearMessages();
 
-                const ep = self.validationEp + '/' + self.id + '/' + self.currentStep;
-                self._request('POST', ep).done(function (resp) {
+                const ep = sethislf.validationEp + '/' + sthiself.uid + '/' + sthiself.currentStep;
+                sethislf._request('POST', ep).done(function (resp) {
                     if (resp.status) {
                         deffer.resolve();
                     }
@@ -471,13 +465,13 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @param {Number} step
          * @returns {Form}
          */
-        self.showWidgets = function (step) {
-            for (const uid in self.widgets) {
-                if (self.widgets[uid].formStep === step)
-                    self.widgets[uid].show();
+        showWidgets(step) {
+            for (const uid in this.widgets) {
+                if (this.widgets[uid].formStep === step)
+                    this.widgets[uid].show();
             }
 
-            return self;
+            return this;
         };
 
         /**
@@ -486,13 +480,13 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @param {Number} step
          * @returns {Form}
          */
-        self.hideWidgets = function (step) {
-            for (const uid in self.widgets) {
-                if (self.widgets[uid].formStep === step)
-                    self.widgets[uid].hide();
+        hideWidgets(step) {
+            for (const uid in this.widgets) {
+                if (this.widgets[uid].formStep === step)
+                    this.widgets[uid].hide();
             }
 
-            return self;
+            return this;
         };
 
         /**
@@ -501,13 +495,13 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @param {Number} step
          * @returns {Form}
          */
-        self.removeWidgets = function (step) {
-            for (const uid in self.widgets) {
-                if (self.widgets[uid].formStep === step)
-                    self.removeWidget(uid);
+        removeWidgets(step) {
+            for (const uid in this.widgets) {
+                if (this.widgets[uid].formStep === step)
+                    this.removeWidget(uid);
             }
 
-            return self;
+            return this;
         };
 
         /**
@@ -515,15 +509,16 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          *
          * @returns {Promise}
          */
-        self.forward = function () {
+        forward() {
+            const self = this;
             const deffer = $.Deferred();
-            const submitButton = self.em.find('[type=submit]');
+            const submitButton = this.em.find('[type=submit]');
 
             // Disable user activity while widgets are loading
             submitButton.attr('disabled', true);
 
             // Validating the form for the current step
-            self.validate().done(function () {
+            this.validate().done(function () {
                 // It is not a last step, so just load and show widgets for the next step
                 if (self.currentStep < self.totalSteps) {
                     // Hide widgets for the current step
@@ -578,17 +573,17 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         /**
          * Move to the previous step
          */
-        self.backward = function () {
-            self.removeWidgets(self.currentStep);
-            self.showWidgets(--self.currentStep);
+        backward() {
+            this.removeWidgets(this.currentStep);
+            this.showWidgets(--this.currentStep);
 
-            if (self.updateLocationHash && self.totalSteps > 1) {
+            if (this.updateLocationHash && this.totalSteps > 1) {
                 const h = assetman.parseLocation().hash;
-                h['__form_step'] = self.currentStep;
+                h['__form_step'] = this.currentStep;
                 window.location.hash = $.param(h);
             }
 
-            $.scrollTo(self.em, 250);
+            $.scrollTo(this.em, 250);
         };
 
         /**
@@ -596,10 +591,10 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          *
          * @returns {Form}
          */
-        self.reset = function () {
-            self.em[0].reset();
+        reset() {
+            this.em[0].reset();
 
-            return self;
+            return this;
         }
     }
 

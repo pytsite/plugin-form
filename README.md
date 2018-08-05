@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.11 (2018-08-05)
+
+- Support of `widget-2.7`.
+
+
 ### 4.10 (2018-07-30)
 
 New API functions: `on_setup_form()`, `on_setup_widgets()`,
