@@ -130,7 +130,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @param {bool} skipTags
          * @returns {Object}
          */
-        serialize(skipTags) {
+        serialize(skipTags = []) {
             function getEmValue(em) {
                 if (em.tagName === 'INPUT' && em.type === 'checkbox')
                     return em.checked ? em.value : null;
@@ -147,7 +147,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                 if (emVal === null)
                     return;
 
-                if (skipTags instanceof Array && this.tagName in skipTags)
+                if (this.tagName in skipTags)
                     return;
 
                 if ($(this).attr('data-skip-serialization') === 'True')
@@ -183,7 +183,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                 }
             });
 
-            for (const k in r) {
+            for (let k in r) {
                 if (r.hasOwnProperty(k) && r[k] instanceof Array && r[k].length === 1)
                     r[k] = r[k][0];
             }
@@ -223,10 +223,10 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         countWidgets(step) {
             let r = 0;
 
-            for (const uid in this.widgets) {
-                if (this.widgets.hasOwnProperty(uid) && this.widgets[uid].formStep === step)
+            $.each(this.widgets, (i, w) => {
+                if (w.formStep === step)
                     ++r;
-            }
+            });
 
             return r;
         };
@@ -266,7 +266,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * Create and place a widget on the form
          *
          * @param {string} html
-         * @returns {widget.Widget}
+         * @return {widget.Widget}
          */
         addWidget(html) {
             // Create widget object
@@ -366,7 +366,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @returns {Form}
          */
         fill(data) {
-            for (const k in data) {
+            for (let k in data) {
                 if (data.hasOwnProperty(k))
                     this.em.find('[name="' + k + '"]').val(data[k]);
             }
@@ -390,20 +390,21 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
             if (this.currentStep > 0) {
                 // Clear form's messages
-                selthisf.clearMessages();
+                self.clearMessages();
 
                 // Reset widgets state
-                for (const uid in sethislf.widgets)
-                    selthisf.widgets[uid].clearState().clearMessages();
+                $.each(self.widgets, (i, w) => {
+                    w.clearState().clearMessages();
+                });
 
-                const ep = sethislf.validationEp + '/' + sthiself.uid + '/' + sthiself.currentStep;
-                sethislf._request('POST', ep).done(function (resp) {
+                const ep = self.validationEp + '/' + self.uid + '/' + self.currentStep;
+                self._request('POST', ep).done(function (resp) {
                     if (resp.status) {
                         deffer.resolve();
                     }
                     else {
                         // Add error messages for widgets
-                        for (const widget_uid in resp.messages) {
+                        for (let widget_uid in resp.messages) {
                             if (!resp.messages.hasOwnProperty(widget_uid))
                                 continue;
 
@@ -466,10 +467,10 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @returns {Form}
          */
         showWidgets(step) {
-            for (const uid in this.widgets) {
-                if (this.widgets[uid].formStep === step)
-                    this.widgets[uid].show();
-            }
+            $.each(this.widgets, (i, w) => {
+                if (w.formStep === step)
+                    w.show();
+            });
 
             return this;
         };
@@ -481,10 +482,10 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @returns {Form}
          */
         hideWidgets(step) {
-            for (const uid in this.widgets) {
-                if (this.widgets[uid].formStep === step)
-                    this.widgets[uid].hide();
-            }
+            $.each(this.widgets, (i, w) => {
+                if (w.formStep === step)
+                    w.hide();
+            });
 
             return this;
         };
@@ -496,10 +497,12 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @returns {Form}
          */
         removeWidgets(step) {
-            for (const uid in this.widgets) {
-                if (this.widgets[uid].formStep === step)
-                    this.removeWidget(uid);
-            }
+            const self = this;
+
+            $.each(self.widgets, (i, w) => {
+                if (w.formStep === step)
+                    self.removeWidget(w.uid);
+            });
 
             return this;
         };

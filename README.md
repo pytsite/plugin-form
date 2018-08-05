@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.11.1 (2018-08-05)
+
+Typos fixed.
+
+
 ### 4.11 (2018-08-05)
 
 - Support of `widget-2.7`.
