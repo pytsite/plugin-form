@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.12 (2018-08-08)
+
+Fixed and refactored.
+
+
 ### 4.11.1 (2018-08-05)
 
 Typos fixed.

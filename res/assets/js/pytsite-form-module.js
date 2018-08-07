@@ -47,6 +47,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             this.messages = em.find('.form-messages').first();
             this.widgets = {};
             this.assets = em.data('assets').split(',');
+            this.throbber = em.find('.form-area-header .throbber');
 
             // Load assets
             $.each(this.assets, function (i, asset) {
@@ -74,7 +75,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             });
 
             // Form submit event handler
-            this.em.submit(function (event) {
+            self.em.submit(function (event) {
                 event.preventDefault();
 
                 // Clear form's messages
@@ -87,13 +88,13 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                 // Form is ready to submit
                 else {
                     // Notify listeners about upcoming form submit
-                    self.em.trigger('formPreSubmit', [self]);
+                    self.em.trigger('preSubmit:form:pytsite', [self]);
 
                     const submitButton = self.em.find('[type=submit]');
                     submitButton.attr('disabled', true);
 
                     httpApi.post(self.action, self.serialize()).done(function (r) {
-                        self.em.trigger('formSubmit', [self, r]);
+                        self.em.trigger('submit:form:pytsite', [self, r]);
 
                         if (r.hasOwnProperty('__alert'))
                             window.alert(r.__alert);
@@ -104,7 +105,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                         if (r.hasOwnProperty('__redirect'))
                             window.location.href = r.__redirect;
                     }).fail(function (e) {
-                        self.em.trigger('formSubmitError', [self, e]);
+                        self.em.trigger('submitError:form:pytsite', [self, e]);
 
                         if (e.hasOwnProperty('responseJSON')) {
                             if (e.responseJSON.hasOwnProperty('warning')) {
@@ -196,7 +197,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          *
          * @param {string} method
          * @param {string} ep
-         * @returns {Promise}
+         * @return {Promise}
          * @private
          */
         _request(method, ep) {
@@ -266,40 +267,50 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * Create and place a widget on the form
          *
          * @param {string} html
-         * @return {widget.Widget}
+         * @param {number} formStep
+         * @return {Promise}
          */
-        addWidget(html) {
-            // Create widget object
-            const w = new widget.Widget(html);
+        createWidget(html, formStep) {
+            return new Promise((resolve) => {
+                new widget.Widget(html, (createdWidget) => {
+                    createdWidget.formStep = formStep;
 
-            // Make widget's UID unique
-            w.uid = `${this.uid}_${w.uid}`;
+                    // Initially widget is hidden
+                    createdWidget.hide();
 
-            // Update widget's parent UID unique
-            if (w.parentUid)
-                w.parentUid = `${this.uid}_${w.parentUid}`;
+                    // Widget replaces another one with different UID
+                    if (createdWidget.replaces === createdWidget.uid)
+                        this.removeWidget(createdWidget.uid);
 
-            // Initially widget is hidden
-            w.hide();
+                    // Widget replaces another one with same UID
+                    if (createdWidget.uid in this.widgets)
+                        this.removeWidget(createdWidget.uid);
 
-            // Widget replaces another one with different UID
-            if (w.replaces === w.uid)
-                this.removeWidget(w.uid);
+                    // Append widget to the list of loaded widgets
+                    this.widgets[createdWidget.uid] = createdWidget;
 
-            // Widget replaces another one with same UID
-            if (w.uid in this.widgets)
-                this.removeWidget(w.uid);
+                    resolve(createdWidget);
+                });
+            });
+        };
 
-            // Append widget to the list of loaded widgets
-            this.widgets[w.uid] = w;
-
+        /**
+         * Append a widget to the form
+         *
+         * @param {Widget} w
+         */
+        appendWidget(w) {
             // Append widget's element to the form's HTML tree
-            if (w.parentUid)
+            if (w.parentUid) {
                 this.getWidget(w.parentUid).appendChild(w);
-            else
+            }
+            else {
+                // Event BEFORE placing widget to the form's DOM.
+                // This event expected ONLY if widget is being placed DIRECTLY to the form,
+                // NOT via widget's .appendChild().
+                w.trigger('appendWidget:form:pytsite', [this]);
                 this.areas[w.formArea].append(w.em);
-
-            return w
+            }
         };
 
         /**
@@ -314,6 +325,23 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
 
             return this.widgets[uid];
         };
+
+        /**
+         * Get widgets for the step ordered by weight
+         *
+         * @param {number} step
+         */
+        getWidgets(step) {
+            let r = [];
+            $.each(this.widgets, (i, w) => {
+                if (w.formStep === step)
+                    r.push(w);
+            });
+
+            return r.sort((a, b) => {
+                return a.weight - b.weight;
+            });
+        }
 
         /**
          * Remove a widget from the form
@@ -335,28 +363,30 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          * @returns {Promise}
          */
         loadWidgets(step) {
-            const self = this;
-            const deffer = $.Deferred();
+            return new Promise((resolve) => {
+                const self = this;
 
-            this._request('POST', this.getWidgetsEp + '/' + this.uid + '/' + step).done(function (resp) {
-                const widgetsToLoadCnt = resp.length;
+                this._request('POST', `${this.getWidgetsEp}/${this.uid}/${step}`).done(function (resp) {
+                    const widgetsNumToLoad = resp.length;
+                    let createdWidgetsNum = 0;
 
-                for (let i = 0; i < widgetsToLoadCnt; i++) {
-                    // Create widget from raw HTML string
-                    let w = self.addWidget(resp[i]);
+                    for (let i = 0; i < widgetsNumToLoad; i++) {
+                        self.createWidget(resp[i], step).then(() => {
+                            ++createdWidgetsNum;
 
-                    // Set form's step of the widget
-                    w.formStep = step;
-                }
+                            // If all widgets created and ready to be added to the form
+                            if (createdWidgetsNum === widgetsNumToLoad) {
+                                // Add each widget to the form
+                                $.each(self.getWidgets(step), (i, w) => {
+                                    self.appendWidget(w);
+                                });
 
-                const loadedWidgetsCnt = self.countWidgets(step);
-                if (loadedWidgetsCnt === widgetsToLoadCnt)
-                    deffer.resolve();
-                else
-                    throw 'Expected widgets to load: ' + widgetsToLoadCnt + ', loaded:' + loadedWidgetsCnt;
+                                resolve();
+                            }
+                        });
+                    }
+                });
             });
-
-            return deffer;
         };
 
         /**
@@ -536,18 +566,21 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                     }
 
                     // Load widgets for the current step
-                    self.loadWidgets(self.currentStep).done(function () {
+                    self.loadWidgets(self.currentStep).then(() => {
                         // Attach click handler to the 'Backward' button
                         self.em.find('.form-action-backward').click(self.backward);
 
                         // Mark current step as is not validated
                         self.isCurrentStepValidated = false;
 
+                        // Hide throbber
+                        self.throbber.css('display', 'none');
+
                         // Show widgets
                         self.showWidgets(self.currentStep);
 
                         // Notify listeners
-                        $(self.em).trigger('formForward', [self]);
+                        $(self.em).trigger('forward:form:pytsite', [self]);
                         deffer.resolve();
 
                         // Scroll to top of the page
