@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.12.1 (2018-08-17)
+
+Support of form's `GET` method fixed.
+
+
 ### 4.12 (2018-08-08)
 
 Fixed and refactored.

@@ -1,10 +1,10 @@
 """PytSite Form Plugin HTTP API Controllers
 """
-__author__ = 'Alexander Shepetko'
+__author__ = 'Oleksandr Shepetko'
 __email__ = 'a@shepetko.com'
 __license__ = 'MIT'
 
-from pytsite import routing as _routing, formatters as _formatters, http as _http
+from pytsite import routing as _routing, formatters as _formatters
 from . import _error, _api, _form
 
 

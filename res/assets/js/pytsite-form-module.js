@@ -93,34 +93,39 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                     const submitButton = self.em.find('[type=submit]');
                     submitButton.attr('disabled', true);
 
-                    httpApi.post(self.action, self.serialize()).done(function (r) {
-                        self.em.trigger('submit:form:pytsite', [self, r]);
+                    if (self.method === 'POST') {
+                        httpApi.post(self.action, self.serialize()).done(function (r) {
+                            self.em.trigger('submit:form:pytsite', [self, r]);
 
-                        if (r.hasOwnProperty('__alert'))
-                            window.alert(r.__alert);
+                            if (r.hasOwnProperty('__alert'))
+                                window.alert(r.__alert);
 
-                        if (r.hasOwnProperty('__reset') && r.__reset)
-                            self.reset();
+                            if (r.hasOwnProperty('__reset') && r.__reset)
+                                self.reset();
 
-                        if (r.hasOwnProperty('__redirect'))
-                            window.location.href = r.__redirect;
-                    }).fail(function (e) {
-                        self.em.trigger('submitError:form:pytsite', [self, e]);
+                            if (r.hasOwnProperty('__redirect'))
+                                window.location.href = r.__redirect;
+                        }).fail(function (e) {
+                            self.em.trigger('submitError:form:pytsite', [self, e]);
 
-                        if (e.hasOwnProperty('responseJSON')) {
-                            if (e.responseJSON.hasOwnProperty('warning')) {
-                                self.addMessage(e.responseJSON.warning, 'warning');
-                                $(window).scrollTo(self.messages, 250);
+                            if (e.hasOwnProperty('responseJSON')) {
+                                if (e.responseJSON.hasOwnProperty('warning')) {
+                                    self.addMessage(e.responseJSON.warning, 'warning');
+                                    $(window).scrollTo(self.messages, 250);
+                                }
+
+                                if (e.responseJSON.hasOwnProperty('error')) {
+                                    self.addMessage(e.responseJSON.error, 'danger');
+                                    $(window).scrollTo(self.messages, 250);
+                                }
                             }
 
-                            if (e.responseJSON.hasOwnProperty('error')) {
-                                self.addMessage(e.responseJSON.error, 'danger');
-                                $(window).scrollTo(self.messages, 250);
-                            }
-                        }
-
-                        submitButton.attr('disabled', false);
-                    });
+                            submitButton.attr('disabled', false);
+                        });
+                    }
+                    else {
+                        window.location.href = `${self.action}?${assetman.encodeQuery(self.serialize([], ['__form_name']))}`;
+                    }
                 }
             });
         }
@@ -128,10 +133,11 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
         /**
          * Serialize form
          *
-         * @param {bool} skipTags
+         * @param {Array} skipTags
+         * @param {Array} skipNames
          * @returns {Object}
          */
-        serialize(skipTags = []) {
+        serialize(skipTags = [], skipNames = []) {
             function getEmValue(em) {
                 if (em.tagName === 'INPUT' && em.type === 'checkbox')
                     return em.checked ? em.value : null;
@@ -145,10 +151,10 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             this.em.find('[name]').each(function () {
                 const emVal = getEmValue(this);
 
-                if (emVal === null)
+                if (emVal == null)
                     return;
 
-                if (this.tagName in skipTags)
+                if (skipTags.includes(this.tagName) || skipNames.includes(this.name))
                     return;
 
                 if ($(this).attr('data-skip-serialization') === 'True')

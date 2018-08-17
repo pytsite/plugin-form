@@ -1,6 +1,6 @@
 {
   "name": "form",
-  "version": "4.12",
+  "version": "4.12.1",
   "description": {
     "en": "Form",
     "ru": "Form",
@@ -8,7 +8,7 @@
   },
   "url": "https://github.com/pytsite/plugin-form",
   "author": {
-    "name": "Alexander Shepetko",
+    "name": "Oleksandr Shepetko",
     "email": "a@shepetko.com",
     "url": "https://shepetko.com"
   },
