@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.12.2 (2018-08-17)
+
+String checking error fixed.
+
+
 ### 4.12.1 (2018-08-17)
 
 Support of form's `GET` method fixed.

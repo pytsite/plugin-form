@@ -93,7 +93,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                     const submitButton = self.em.find('[type=submit]');
                     submitButton.attr('disabled', true);
 
-                    if (self.method === 'POST') {
+                    if (self.method.toUpperCase() === 'POST') {
                         httpApi.post(self.action, self.serialize()).done(function (r) {
                             self.em.trigger('submit:form:pytsite', [self, r]);
 
