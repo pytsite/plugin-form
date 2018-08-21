@@ -4,6 +4,16 @@
 ## Changelog
 
 
+### 4.13 (2018-08-21)
+
+Support of `widget-2.11`.
+
+
+### 4.12.3 (2018-08-21)
+
+Setting of form's HTML ID fixed.
+
+
 ### 4.12.2 (2018-08-17)
 
 String checking error fixed.
@@ -26,7 +36,7 @@ Typos fixed.
 
 ### 4.11 (2018-08-05)
 
-- Support of `widget-2.7`.
+Support of `widget-2.7`.
 
 
 ### 4.10 (2018-07-30)

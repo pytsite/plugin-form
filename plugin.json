@@ -1,6 +1,6 @@
 {
   "name": "form",
-  "version": "4.12.2",
+  "version": "4.13",
   "description": {
     "en": "Form",
     "ru": "Form",
@@ -19,7 +19,7 @@
       "jquery",
       "jquery_scrollto",
       "font_awesome",
-      "widget>=2.8"
+      "widget>=2.11"
     ]
   }
 }

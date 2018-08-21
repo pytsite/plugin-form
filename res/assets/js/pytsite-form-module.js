@@ -28,7 +28,7 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
     class Form {
         constructor(em) {
             this.em = em;
-            this.uid = em.attr('id');
+            this.uid = em.data('uid');
             this.name = em.attr('name');
             this.enctype = em.attr('enctype');
             this.action = em.attr('action');
@@ -278,7 +278,8 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
          */
         createWidget(html, formStep) {
             return new Promise((resolve) => {
-                new widget.Widget(html, (createdWidget) => {
+                new widget.Widget(html, this, (createdWidget) => {
+                    createdWidget.form = this;
                     createdWidget.formStep = formStep;
 
                     // Initially widget is hidden
