@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.13.1 (2018-08-29)
+
+Form setup events order fixed.
+
+
 ### 4.13 (2018-08-21)
 
 Support of `widget-2.11`.

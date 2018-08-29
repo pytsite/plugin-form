@@ -68,7 +68,7 @@ class Form(_ABC):
         )
 
         # Form's attributes. This dict holds all form's attributes that can be set from outside.
-        # Using dict instead of separate object's properties motivated by large amount of variables and neccessity of
+        # Using dict instead of separate object's properties motivated by large amount of variables and necessity of
         # caching them in convenient manner
         self._attrs = {
             'created': _datetime.now(),
@@ -120,12 +120,13 @@ class Form(_ABC):
             # Perform form's setup
             self._on_setup_form()
 
-            # Form setup event
-            _events.fire('form@setup_form.' + self.name, frm=self)
-
             # Set form's UID if it still not set
             if not self._uid:
                 self._uid = self._build_uid()
+
+            # Set form's name if it still not set
+            if not self.name:
+                self.name = _F_NAME_SUB_RE.sub('_', self._uid.lower()).replace('__', '_')
 
             # Set default action
             if not self.action:
@@ -134,9 +135,8 @@ class Form(_ABC):
                 except _routing.error.RuleNotFound:
                     pass
 
-            # Set default name
-            if not self.name:
-                self.name = _F_NAME_SUB_RE.sub('_', self._uid.lower()).replace('__', '_')
+            # Form setup event
+            _events.fire('form@setup_form.' + self.name, frm=self)
 
             # Add convenient CSS classes
             self.css += ' form-cid-{}'.format(_CSS_SUB_RE.sub('-', self._cid.lower()).replace('--', '-'))
