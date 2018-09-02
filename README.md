@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.13.2 (2018-09-02)
+
+Widgets order enforcement in `fill()` fixed.
+
+
 ### 4.13.1 (2018-08-29)
 
 Form setup events order fixed.

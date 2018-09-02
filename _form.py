@@ -597,20 +597,12 @@ class Form(_ABC):
             except _cache.error.KeyNotExist:
                 self._values_cache.put_hash(self._uid, {}, _CACHE_TTL)
 
-        for k, v in values.items():
-            # Try to fill widget by UID
-            try:
-                widget = self.get_widget(k)
-                widget.value = v
+        # Fill widgets in order they placed on the form
+        for widget in self.get_widgets(self._current_step):
+            if widget.uid in values or widget.name in values:
+                widget.value = values[widget.uid if widget.uid in values else widget.name]
                 if self._cache:
                     self._values_cache.put_hash_item(self._uid, widget.uid, widget.value)
-
-            # Fill widgets with appropriate names
-            except _error.WidgetNotExistError:
-                for widget in self.get_widgets(self._current_step, 'name', v):  # type: _widget.Abstract
-                    widget.value = v
-                    if self._cache:
-                        self._values_cache.put_hash_item(self._uid, widget.uid, widget.value)
 
         return self
 
