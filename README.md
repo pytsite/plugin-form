@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.14.1 (2018-09-09)
+
+Setting of `location`, `referer` and `redirect` attributes fixed.
+
+
 ### 4.14 (2018-09-09)
 
 New properties in `Form`: `location` and `referer`.

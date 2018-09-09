@@ -77,10 +77,9 @@ class Form(_ABC):
             'method': 'post',
             'action': '',
             'data': {},
-            'path': _router.current_path(),
-            'redirect': self._request.inp.get('__redirect', '') if self._request else '',
-            'location': self._request.inp.get('__location', '') if self._request else '',
-            'referer': self._request.inp.get('__referer', '') if self._request else '',
+            'location': request.url,
+            'referer': request.referrer,
+            'redirect': self._request.inp.get('__redirect'),
             'steps': 1,
             'update_location_hash': False,
             'css': 'pytsite-form',
@@ -106,6 +105,12 @@ class Form(_ABC):
             if self._attrs_cache.has(self._uid):
                 self._cache = True
                 self._attrs.update(self._attrs_cache.get_hash(self._uid))
+
+            # This attributes must be overwritten
+            for k in ('location', 'referer', 'redirect'):
+                v = request.inp.get('__' + k)
+                if v:
+                    self.set_attr(k, v)
 
             # Perform form's setup
             self._on_setup_form()
@@ -571,12 +576,6 @@ class Form(_ABC):
         """Get attribute
         """
         return self._attrs.get(k, default)
-
-    @property
-    def path(self) -> str:
-        """Get form's path
-        """
-        return self._attrs['path']
 
     @property
     def tpl(self) -> str:
