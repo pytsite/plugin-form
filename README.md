@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.14 (2018-09-09)
+
+New properties in `Form`: `location` and `referer`.
+
+
 ### 4.13.2 (2018-09-02)
 
 Widgets order enforcement in `fill()` fixed.

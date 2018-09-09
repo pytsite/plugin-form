@@ -210,6 +210,11 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
             const data = this.serialize();
             const self = this;
 
+            Object.assign(data, {
+                '__location': location.href,
+                '__referer': document.referrer
+            });
+
             // Merge data from location query
             $.extend(data, assetman.parseLocation(true).query);
 

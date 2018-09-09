@@ -53,7 +53,7 @@ class Form(_ABC):
         # Current step
         self._current_step = 1
 
-        # If the form should be cached or not
+        # Should form be cached
         self._cache = False
 
         # Default submit button
@@ -64,7 +64,7 @@ class Form(_ABC):
             color='primary',
             form_area='footer',
             css='form-action-submit',
-            icon='fa fas fa-fw fa-save',
+            icon='fa fas fa-fw fa-check',
         )
 
         # Form's attributes. This dict holds all form's attributes that can be set from outside.
@@ -79,6 +79,8 @@ class Form(_ABC):
             'data': {},
             'path': _router.current_path(),
             'redirect': self._request.inp.get('__redirect', '') if self._request else '',
+            'location': self._request.inp.get('__location', '') if self._request else '',
+            'referer': self._request.inp.get('__referer', '') if self._request else '',
             'steps': 1,
             'update_location_hash': False,
             'css': 'pytsite-form',
@@ -510,6 +512,30 @@ class Form(_ABC):
         """Set redirect URL
         """
         self.set_attr('redirect', value)
+
+    @property
+    def location(self) -> str:
+        """Get location URL
+        """
+        return self._attrs['location']
+
+    @location.setter
+    def location(self, value: str):
+        """Set location URL
+        """
+        self.set_attr('location', value)
+
+    @property
+    def referer(self) -> str:
+        """Get referer URL
+        """
+        return self._attrs['referer']
+
+    @referer.setter
+    def referer(self, value: str):
+        """Set referer URL
+        """
+        self.set_attr('referer', value)
 
     @property
     def update_location_hash(self) -> bool:
