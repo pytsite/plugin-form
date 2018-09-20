@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 4.14.2 (2018-09-20)
+
+Unwanted submit button enabling fixed.
+
+
 ### 4.14.1 (2018-09-09)
 
 Setting of `location`, `referer` and `redirect` attributes fixed.

@@ -608,7 +608,6 @@ define(['jquery', 'jquery-scrollto', 'assetman', 'http-api', 'widget'], function
                 else {
                     self.readyToSubmit = true;
                     self.em.submit();
-                    submitButton.attr('disabled', false);
                 }
             }).fail(function () {
                 submitButton.attr('disabled', false);
