@@ -94,7 +94,6 @@ class Form(_ABC):
             'title': '',
             'hide_title': False,
             'title_css': '',
-            'assets': ['form@js/pytsite-form.js']
         }
 
         # Presence of '_uid' kwarg means that form's is being reconstructed by _api.dispense()
@@ -559,12 +558,6 @@ class Form(_ABC):
         """Get data-attributes
         """
         return self._attrs['data']
-
-    @property
-    def assets(self) -> list:
-        """Get assets list
-        """
-        return self._attrs['assets']
 
     @data.setter
     def data(self, value: dict):

@@ -1,0 +1,8 @@
+{
+  "name": "@pytsite/form",
+  "main": "index.js",
+  "dependencies": {
+    "jquery": "3.x",
+    "jquery.scrollto": "2.x"
+  }
+}

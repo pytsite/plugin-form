@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.0 (2018-10-11)
+
+Support of `pytsite-8.x` and `widget-3.x`.
+
+
 ### 4.14.2 (2018-09-20)
 
 Unwanted submit button enabling fixed.
