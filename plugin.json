@@ -1,6 +1,6 @@
 {
   "name": "form",
-  "version": "5.0",
+  "version": "5.1",
   "description": {
     "en": "Form",
     "ru": "Form",
@@ -15,7 +15,7 @@
   "requires": {
     "pytsite": ">=8",
     "plugins": {
-      "assetman": "3.x",
+      "assetman": "4.x",
       "http_api": "3.x",
       "widget": "3.x"
     }
