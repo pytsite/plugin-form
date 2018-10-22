@@ -1,8 +1,8 @@
-const $ = require('jquery');
 import 'jquery.scrollto';
-const assetman = require('@pytsite/assetman');
-const httpApi = require('@pytsite/http-api');
-const widget = require('@pytsite/widget');
+import $ from 'jquery';
+import assetman from '@pytsite/assetman';
+import httpApi from '@pytsite/http-api';
+import {Widget} from '@pytsite/widget';
 
 const forms = {};
 
@@ -53,11 +53,6 @@ class Form {
         this.widgets = {};
         this.assets = em.data('assets').split(',');
         this.throbber = em.find('.form-area-header .throbber');
-
-        // Load assets
-        // $.each(this.assets, function (i, asset) {
-        //     assetman.load(asset, null);
-        // });
 
         // Form ID can be passed via query
         if (this.updateLocationHash) {
@@ -282,13 +277,13 @@ class Form {
     /**
      * Create and place a widget on the form
      *
-     * @param {string} html
+     * @param {jquery} html
      * @param {number} formStep
      * @return {Promise}
      */
     createWidget(html, formStep) {
         return new Promise((resolve) => {
-            new widget.Widget(html, this, (createdWidget) => {
+            new Widget(html, this, (createdWidget) => {
                 createdWidget.form = this;
                 createdWidget.formStep = formStep;
 
@@ -388,7 +383,7 @@ class Form {
                 let createdWidgetsNum = 0;
 
                 for (let i = 0; i < widgetsNumToLoad; i++) {
-                    self.createWidget(resp[i], step).then((w) => {
+                    self.createWidget(resp[i], step).then(() => {
                         ++createdWidgetsNum;
 
                         // If all widgets created and ready to be added to the form
