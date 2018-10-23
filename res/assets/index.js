@@ -284,7 +284,6 @@ class Form {
     createWidget(html, formStep) {
         return new Promise((resolve) => {
             new Widget(html, this, (createdWidget) => {
-                createdWidget.form = this;
                 createdWidget.formStep = formStep;
 
                 // Initially widget is hidden
