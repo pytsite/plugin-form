@@ -672,7 +672,7 @@ class Form(_ABC):
         """
         # Notify widgets
         for w in self._widgets:
-            w.form_submit(self._uid)
+            w.form_submit(self._request)
 
         # Notify form instance
         r = self._on_submit()

@@ -1,6 +1,6 @@
 {
   "name": "form",
-  "version": "5.2.1",
+  "version": "5.3",
   "description": {
     "en": "Form",
     "ru": "Form",
@@ -17,7 +17,7 @@
     "plugins": {
       "assetman": "5.x",
       "http_api": "3.x",
-      "widget": "4.x"
+      "widget": ">=4.4<5"
     }
   }
 }

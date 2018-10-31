@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.3 (2018-10-31)
+
+Support of `widget-4.4`.
+
+
 ### 5.2.1 (2018-10-23)
 
 Unnecessary line of code removed.
