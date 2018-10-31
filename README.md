@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.3.1 (2018-10-31)
+
+Widgets naming issue fixed.
+
+
 ### 5.3 (2018-10-31)
 
 Support of `widget-4.4`.

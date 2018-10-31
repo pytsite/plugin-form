@@ -597,7 +597,12 @@ class Form(_ABC):
     def values(self) -> _OrderedDict:
         """Get form's values
         """
-        return _OrderedDict([(w.name, w.get_val()) for w in self.get_widgets()])
+        r = _OrderedDict([(w.uid, w.get_val()) for w in self.get_widgets()])
+
+        # Sometimes widgets can have different UID and name
+        r.update(_OrderedDict([(w.name, w.get_val()) for w in self.get_widgets()]))
+
+        return r
 
     @property
     def fields(self) -> list:
