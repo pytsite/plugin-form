@@ -142,7 +142,7 @@ class Form {
             if (em.tagName === 'INPUT' && em.type === 'checkbox')
                 return em.checked ? em.value : null;
             else
-                return em.value;
+                return $(em).val();
         }
 
         let r = {};

@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.3.2 (2018-11-08)
+
+Multiple `select` elements serialization fixed.
+
+
 ### 5.3.1 (2018-10-31)
 
 Widgets naming issue fixed.
