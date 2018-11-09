@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.3.3 (2018-11-09)
+
+Form serialization issue fixed.
+
+
 ### 5.3.2 (2018-11-08)
 
 Multiple `select` elements serialization fixed.

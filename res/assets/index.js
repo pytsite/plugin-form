@@ -167,33 +167,28 @@ class Form {
             if (dictListMatch)
                 fName = dictListMatch[1];
 
-            if (!(fName in r)) {
-                if (dictListMatch) {
+            if (dictListMatch) {
+                if (!(fName in r)) {
                     r[fName] = {};
                     r[fName][dictListMatch[2]] = [emVal];
                 }
-                else if (listMatch)
-                    r[fName] = [emVal];
-                else
-                    r[fName] = emVal;
-            }
-            else {
-                if (dictListMatch) {
-                    if (!(dictListMatch[2] in r[fName]))
-                        r[fName][dictListMatch[2]] = [];
-                    r[fName][dictListMatch[2]].push(emVal);
-                }
-                else if (listMatch)
-                    r[fName].push(emVal);
-                else
-                    r[fName] = emVal;
-            }
-        });
 
-        for (let k in r) {
-            if (r.hasOwnProperty(k) && r[k] instanceof Array && r[k].length === 1)
-                r[k] = r[k][0];
-        }
+                if (!(dictListMatch[2] in r[fName]))
+                    r[fName][dictListMatch[2]] = [];
+                r[fName][dictListMatch[2]].push(emVal);
+            }
+            else if (listMatch) {
+                if (!(fName in r))
+                    r[fName] = [];
+
+                if (emVal instanceof Array)
+                    emVal.forEach(subEm => r[fName].push(subEm));
+                else
+                    r[fName].push(emVal);
+            }
+            else
+                r[fName] = emVal;
+        });
 
         return r;
     };
