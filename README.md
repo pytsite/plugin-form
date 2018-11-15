@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.3.4 (2018-11-15)
+
+Form serialization issue fixed.
+
+
 ### 5.3.3 (2018-11-09)
 
 Form serialization issue fixed.

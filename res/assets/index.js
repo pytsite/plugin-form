@@ -168,13 +168,12 @@ class Form {
                 fName = dictListMatch[1];
 
             if (dictListMatch) {
-                if (!(fName in r)) {
+                if (!(fName in r))
                     r[fName] = {};
-                    r[fName][dictListMatch[2]] = [emVal];
-                }
 
                 if (!(dictListMatch[2] in r[fName]))
                     r[fName][dictListMatch[2]] = [];
+
                 r[fName][dictListMatch[2]].push(emVal);
             }
             else if (listMatch) {
