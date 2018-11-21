@@ -368,7 +368,7 @@ class Form {
      * @returns {Promise}
      */
     loadWidgets(step) {
-        return new Promise((resolve) => {
+        return new Promise(resolve => {
             const self = this;
 
             this._request('POST', `${this.getWidgetsEp}/${this.uid}/${step}`).done(function (resp) {
@@ -586,12 +586,13 @@ class Form {
 
                     // Notify listeners
                     $(self.em).trigger('forward:form:pytsite', [self]);
+                    if (self.currentStep === 1)
+                        $(self.em).trigger('ready:form:pytsite', [self]);
                     deffer.resolve();
 
                     // Scroll to top of the page
-                    if (self.currentStep > 1) {
+                    if (self.currentStep > 1)
                         $.scrollTo(self.em, 250);
-                    }
 
                     // Enable submit button
                     submitButton.attr('disabled', false);

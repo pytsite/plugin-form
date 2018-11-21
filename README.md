@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.4 (2018-11-21)
+
+New JS event `ready:form:pytsite` added.
+
+
 ### 5.3.4 (2018-11-15)
 
 Form serialization issue fixed.
