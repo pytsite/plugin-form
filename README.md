@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.5 (2018-11-22)
+
+Support of `http_api-3.3`.
+
+
 ### 5.4 (2018-11-21)
 
 New JS event `ready:form:pytsite` added.

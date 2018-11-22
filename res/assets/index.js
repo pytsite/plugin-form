@@ -94,7 +94,7 @@ class Form {
                 submitButton.attr('disabled', true);
 
                 if (self.method.toUpperCase() === 'POST') {
-                    httpApi.post(self.action, self.serialize()).done(function (r) {
+                    httpApi.post(self.action, self.serialize()).then(r => {
                         self.em.trigger('submit:form:pytsite', [self, r]);
 
                         if (r.hasOwnProperty('__alert'))
@@ -105,7 +105,7 @@ class Form {
 
                         if (r.hasOwnProperty('__redirect'))
                             window.location.href = r.__redirect;
-                    }).fail(function (e) {
+                    }).catch(e => {
                         self.em.trigger('submitError:form:pytsite', [self, e]);
 
                         if (e.hasOwnProperty('responseJSON')) {
@@ -212,11 +212,11 @@ class Form {
         // Merge data from location query
         $.extend(data, assetman.parseLocation(true).query);
 
-        return httpApi.request(method, ep, data).fail(function (resp) {
-            if ('responseJSON' in resp && 'error' in resp.responseJSON)
-                self.addMessage(resp.responseJSON.error, 'danger');
+        return httpApi.request(method, ep, data).catch(jqXHR => {
+            if ('responseJSON' in jqXHR && 'error' in jqXHR.responseJSON)
+                self.addMessage(jqXHR.responseJSON.error, 'danger');
             else
-                self.addMessage(resp.statusText, 'danger');
+                self.addMessage(jqXHR.statusText, 'danger');
         });
     };
 
@@ -371,7 +371,7 @@ class Form {
         return new Promise(resolve => {
             const self = this;
 
-            this._request('POST', `${this.getWidgetsEp}/${this.uid}/${step}`).done(function (resp) {
+            this._request('POST', `${this.getWidgetsEp}/${this.uid}/${step}`).then(resp => {
                 const widgetsNumToLoad = resp.length;
                 let createdWidgetsNum = 0;
 
@@ -419,7 +419,7 @@ class Form {
         const deffer = $.Deferred();
 
         // Mark current step as validated when validation will finish
-        deffer.done(function () {
+        deffer.done(() => {
             self.isCurrentStepValidated = true;
         });
 
@@ -433,7 +433,7 @@ class Form {
             });
 
             const ep = self.validationEp + '/' + self.uid + '/' + self.currentStep;
-            self._request('POST', ep).done(function (resp) {
+            self._request('POST', ep).then(resp => {
                 if (resp.status) {
                     deffer.resolve();
                 }
@@ -483,7 +483,7 @@ class Form {
                     $(window).scrollTo(scrollToTarget, 250);
                     deffer.reject();
                 }
-            }).fail(function () {
+            }).catch(() => {
                 $(window).scrollTo(0, 250);
                 deffer.reject();
             });
@@ -556,7 +556,7 @@ class Form {
         submitButton.attr('disabled', true);
 
         // Validating the form for the current step
-        this.validate().done(function () {
+        this.validate().then(() => {
             // It is not a last step, so just load and show widgets for the next step
             if (self.currentStep < self.totalSteps) {
                 // Hide widgets for the current step
@@ -603,7 +603,7 @@ class Form {
                 self.readyToSubmit = true;
                 self.em.submit();
             }
-        }).fail(function () {
+        }).catch(() => {
             submitButton.attr('disabled', false);
             deffer.reject();
         });
