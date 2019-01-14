@@ -503,7 +503,7 @@ class Form {
      */
     showWidgets(step) {
         $.each(this.widgets, (i, w) => {
-            if (w.formStep === step)
+            if (w.formStep === step && !w.initiallyHidden)
                 w.show();
         });
 

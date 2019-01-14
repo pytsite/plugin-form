@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.6 (2019-01-14)
+
+Support of `widget-4.11.4`.
+
+
 ### 5.5 (2018-11-22)
 
 Support of `http_api-3.3`.
