@@ -1,6 +1,6 @@
 {
   "name": "form",
-  "version": "5.6",
+  "version": "5.6.1",
   "description": {
     "en": "Form",
     "ru": "Form",
@@ -13,11 +13,11 @@
     "url": "https://shepetko.com"
   },
   "requires": {
-    "pytsite": ">=8",
+    "pytsite": ">=8.9",
     "plugins": {
-      "assetman": "5.x",
-      "http_api": ">=3.3<4",
-      "widget": ">=4.11.4<5"
+      "assetman": "^5.0",
+      "http_api": "^3.3",
+      "widget": "^4.13"
     }
   }
 }

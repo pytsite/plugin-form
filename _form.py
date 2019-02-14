@@ -722,14 +722,16 @@ class Form(_ABC):
     def replace_widget(self, source_uid: str, replacement: _widget.Abstract):
         """Replace a widget with another one
         """
-        current = self.get_widget(source_uid)
-        if not replacement.weight and current.weight:
-            replacement.weight = current.weight
+        source = self.get_widget(source_uid)
 
-        replacement.form_area = current.form_area
-        replacement.replaces = source_uid
-
-        self.remove_widget(source_uid).add_widget(replacement)
+        if source.parent:
+            source.parent.replace_child(source_uid, replacement)
+        else:
+            if not replacement.weight and source.weight:
+                replacement.weight = source.weight
+            replacement.form_area = source.form_area
+            replacement.replaces = source_uid
+            self.remove_widget(source_uid).add_widget(replacement)
 
         return self
 
@@ -791,7 +793,10 @@ class Form(_ABC):
         w = self.get_widget(uid)
         w.clr_rules()
 
-        self._widgets = [w for w in self._widgets if w.uid != uid]
+        if w.parent:
+            w.parent.remove_child(w.uid)
+        else:
+            self._widgets = [w for w in self._widgets if w.uid != uid]
 
         return self
 

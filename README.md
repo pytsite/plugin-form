@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.6.1 (2019-02-14)
+
+`Abstract`'s `replace_widget()` and `remove_widget()` methods fixed.
+
+
 ### 5.6 (2019-01-14)
 
 Support of `widget-4.11.4`.
