@@ -733,7 +733,7 @@ class Form(_ABC):
             replacement.replaces = source_uid
             self.remove_widget(source_uid).add_widget(replacement)
 
-        return self
+        return replacement
 
     def hide_widget(self, uid):
         """Hide a widget

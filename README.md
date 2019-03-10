@@ -4,9 +4,14 @@
 ## Changelog
 
 
+### 5.6.2 (2019-03-10)
+
+`form.Abstract.replace_widget()` return value fixed.
+
+
 ### 5.6.1 (2019-02-14)
 
-`Abstract`'s `replace_widget()` and `remove_widget()` methods fixed.
+`form.Abstract`'s `replace_widget()` and `remove_widget()` methods fixed.
 
 
 ### 5.6 (2019-01-14)
