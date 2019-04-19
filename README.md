@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.6.3 (2019-04-19)
+
+Form serialization skipping fixed in JS code.
+
+
 ### 5.6.2 (2019-03-10)
 
 `form.Abstract.replace_widget()` return value fixed.

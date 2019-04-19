@@ -151,9 +151,6 @@ class Form {
         this.em.find('[name]').each(function () {
             const emVal = getEmValue(this);
 
-            if (emVal == null)
-                return;
-
             if (skipTags.includes(this.tagName) || skipNames.includes(this.name))
                 return;
 
