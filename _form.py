@@ -613,6 +613,8 @@ class Form(_ABC):
     def fill(self, values: _Mapping):
         """Fill form's widgets with values
         """
+        errors = {}
+
         # Create form's cache placeholder
         if self._cache:
             try:
@@ -622,10 +624,19 @@ class Form(_ABC):
 
         # Fill widgets in order they placed on the form
         for widget in self.get_widgets(self._current_step):
-            if widget.uid in values or widget.name in values:
-                widget.value = values[widget.uid if widget.uid in values else widget.name]
-                if self._cache:
-                    self._values_cache.put_hash_item(self._uid, widget.uid, widget.value)
+            widget_key = widget.uid or widget.name
+            if widget_key in values:
+                try:
+                    widget.value = values[widget_key]
+                    if self._cache:
+                        self._values_cache.put_hash_item(self._uid, widget.uid, widget.value)
+                except Exception as e:
+                    if widget_key not in errors:
+                        errors[widget_key] = []
+                    errors[widget_key].append(str(e))
+
+        if errors:
+            raise _error.FormFillError(errors)
 
         return self
 

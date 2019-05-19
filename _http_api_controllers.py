@@ -57,7 +57,7 @@ class PostValidate(_routing.Controller):
 
             return {'status': True}
 
-        except _error.FormValidationError as e:
+        except (_error.FormFillError, _error.FormValidationError) as e:
             return {'status': False, 'messages': e.errors}
 
 

@@ -4,6 +4,11 @@
 ## Changelog
 
 
+### 5.7 (2019-05-19)
+
+- New `FormFillError` exception introduced.
+
+
 ### 5.6.3 (2019-04-19)
 
 Form serialization skipping fixed in JS code.
